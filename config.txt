@@ -1,0 +1,8 @@
+# This is a comment!
+WIDTH=32
+HEIGHT=18
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=False
+SEED=0

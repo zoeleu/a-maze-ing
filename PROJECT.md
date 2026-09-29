@@ -1,0 +1,16 @@
+- Unit tests
+- .gitignore
+- Virtual environments
+- Makefile
+    - install: install all dependencies
+    - run: execute program
+    - debug: runs the script with python's debugger `pdb`
+    - clean: remove temporary files (e.g., `__pycache__`, `.mypy_cache`, etc.)
+    - lint: lint with subject's flags
+    - lint-strict (optional): check subject
+- **typings everywhere!!!!**
+- PEP 257 docstrings **everywhere**
+- **no crashing!!! try-except when applicable**
+- maze can’t have large open areas (max width 2 cells)
+- needs 42 symbol in the middle
+- PERFECT flag: see subject
