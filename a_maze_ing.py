@@ -89,16 +89,23 @@ class Maze:
 
     def is_open(self, cell: Cell, side: Direction) -> bool:
         """Tells you if a path between cells is open"""
-        return side in self.walls(cell)
+        neighbour_cell = self.neighbour(cell, side)
+        if neighbour_cell not in self:
+            return False
+        return side in self.walls(cell) and side in self.walls(neighbour_cell)
 
     def open_path(self, cell: Cell, side: Direction)-> bool:
         """Tries to open a path between two cells, and returns True on success"""
-        pass
+        if self.is_open(cell, side):
+            return False
+        if self.in_logo(cell) or self.in_logo(self.neighbour(cell, side)):
+            return False
+        
 
 
 
 
-class MazeError(Exception):
+class MazeGenerationError(Exception):
     pass
 
 
@@ -115,7 +122,7 @@ class MazeGenerator:
         self.height = config.height
 
         if self.height <= 5 or self.width <= 7:
-            raise MazeError("Maze height/width is too small")
+            raise MazeGenerationError("Maze height/width is too small")
 
         self.grid = [[15 for i in range(self.height)]
                      for j in range(self.width)]
