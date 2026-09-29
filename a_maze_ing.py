@@ -1,6 +1,6 @@
 from lib import Config
 from enum import IntFlag
-from random import seed
+import random
 from typing import Dict, FrozenSet, Iterator, List, Optional, Set, Tuple
 import sys
 
@@ -38,14 +38,57 @@ _STEP: Dict[Direction, Cell] = {
     Direction.WEST: (0, -1),
 }
 
+LOGO = [(-3, +2), (-3, +1), (-3, 0), (-2, 0), (-1, 0), (-1, -1),
+        (-1, -2), (+1, +2), (+1, 0), (+1, -1), (+1, -2), (+2, +2),
+        (+2, 0), (+2, -2), (+3, +2), (+3, +1), (+3, 0), (+3, -2)]
+
 
 class Maze:
+    grid: List[List[int]]
+
+
+    def __init__(self, grid: List[List[int]]):
+        self.grid = [col[:] for col in grid]
+        self.rows = len(grid)
+        self.cols = len(grid[0]) if grid else 0
+        self.center_cell = ((self.cols - 1) // 2, self.rows // 2)
+
+    def __contains__(self, cell: Cell):
+        row, col = cell
+        return 0 <= row < self.rows and 0 <= col < self.cols
+
+    def __iter__(self) -> Iterator[Cell]:
+        for row in range(self.rows):
+            for col in range(self.cols):
+                yield row, col
+
+    def in_logo(self, cell: Cell):
+        row, col = cell
+        center_row, center_col = self.center_cell
+        return (row - center_row, col - center_col) in LOGO
+
+
+class MazeError(Exception):
+    pass
+
+
+class MazeGenerator:
     config: Config
     width: int
-    length: int
+    height: int
+    grid: List[List[int]]
+    maze: Maze
 
     def __init__(self, config: Config):
         self.config = config
         self.width = config.width
-        self.length = config.length
-        
+        self.height = config.height
+
+        if self.height <= 5 or self.width <= 7:
+            raise MazeError("Maze height/width is too small")
+
+        self.grid = [[0 for i in range(self.height)]
+                     for j in range(self.width)]
+        self.maze = Maze(self.grid)
+        self.maze.add_logo
+
