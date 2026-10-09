@@ -68,14 +68,13 @@ class Maze:
             for col in range(self.cols):
                 yield row, col
 
-    def walls(self, cell: Cell) -> int:
-        """Gives access to which walls of a given cell are open"""
-        row, col = cell
-        return self.grid[row][col]
-
     def __setitem__(self, cell: Cell, directions: Direction) -> None:
         row, col = cell
         self.grid[row][col] = directions
+
+    def __getitem__(self, cell: Cell) -> Direction:
+        row, col = cell
+        return self.grid[row][col]
 
     def neighbour(self, cell: Cell, side: Direction) -> Cell:
         """Returns the cell's neighbour in the given direction"""
@@ -93,8 +92,8 @@ class Maze:
         neighbour_cell = self.neighbour(cell, side)
         if neighbour_cell not in self:
             return False
-        return side not in self.walls(cell) and \
-            side not in self.walls(neighbour_cell)
+        return side not in self[neighbour_cell] and \
+            side not in self[cell]
 
     def open_sides(self, cell: Cell) -> Iterator[Direction]:
         for side in Direction:
