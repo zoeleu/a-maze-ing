@@ -67,7 +67,22 @@ which is the same as:
 
 `config.txt` is the only argument and can be any file following the format
 below. The program writes the maze to `OUTPUT_FILE`, then opens the
-interface.
+interface. If the config is invalid, the interface shows what is wrong
+instead (see [The interface](#the-interface)).
+
+When it is not run from a terminal, for example with its output redirected
+or from a script, the program only writes the maze to `OUTPUT_FILE`,
+without the interface. Problems are then printed, naming the key or line at
+fault, and the program exits with status 1:
+
+```
+$ python3 a_maze_ing.py config.txt > /dev/null
+Error: config.txt, EXIT: Out of bounds: x must be between 0 and 31 (WIDTH=32)
+```
+
+Running it without exactly one argument prints its usage. It never stops
+with a traceback: a missing Textual install, Ctrl+C or an unexpected error
+are reported as a message too.
 
 ### Makefile rules
 

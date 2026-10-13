@@ -3,20 +3,41 @@ import runpy
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import mazegen
 from mazegen import Config, Maze, TaintTransformer, WilsonsGenerator
+from ui import AMazeIngApp
 from tests.helpers import VALID_CONFIG, WriteConfig
 
 SCRIPT = str(Path(__file__).parent.parent / "a_maze_ing.py")
 
 
-def run(monkeypatch: pytest.MonkeyPatch, *args: str) -> None:
-    """Run a_maze_ing.py in this process, as if from the command line."""
+def run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
+    """Run a_maze_ing.py in this process, as if from the command line, and
+    return its exit status. Under pytest there is no terminal, so it builds
+    the maze without the interface."""
     monkeypatch.setattr(sys, "argv", [SCRIPT, *args])
-    runpy.run_path(SCRIPT, run_name="__main__")
+    with pytest.raises(SystemExit) as exited:
+        runpy.run_path(SCRIPT, run_name="__main__")
+    code = exited.value.code
+    assert isinstance(code, int)
+    return code
+
+
+def script() -> dict[str, Any]:
+    """The script's functions, imported without running it."""
+    return runpy.run_path(SCRIPT, run_name="a_maze_ing")
+
+
+def pretend_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pretend a person is at the terminal, so the script opens the
+    interface. Call it from the test itself: pytest only puts its capturing
+    sys.stdout in place once the test starts, after the fixtures."""
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
 
 def expected_output(path: str) -> str:
@@ -78,17 +99,107 @@ def test_no_warning_for_a_perfect_maze(
     assert capsys.readouterr().err == ""
 
 
-def test_needs_a_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Without a config argument the command fails."""
-    with pytest.raises(IndexError):
-        run(monkeypatch)
+@pytest.mark.parametrize("args", [(), ("a.txt", "b.txt")])
+def test_needs_exactly_one_config(monkeypatch: pytest.MonkeyPatch,
+                                  capsys: pytest.CaptureFixture[str],
+                                  args: tuple[str, ...]) -> None:
+    """Without exactly one argument the command prints its usage and
+    fails."""
+    assert run(monkeypatch, *args) == 1
+    assert "usage: python3 a_maze_ing.py <config file>" in \
+        capsys.readouterr().err
 
 
-def test_bad_config_raises(monkeypatch: pytest.MonkeyPatch,
-                           tmp_path: Path) -> None:
-    """A missing config file stops the command with FileNotFoundError."""
-    with pytest.raises(FileNotFoundError):
-        run(monkeypatch, str(tmp_path / "missing.txt"))
+def test_missing_config_is_reported(monkeypatch: pytest.MonkeyPatch,
+                                    tmp_path: Path,
+                                    capsys: pytest.CaptureFixture[str]
+                                    ) -> None:
+    """A missing config file is an error message, not a traceback."""
+    assert run(monkeypatch, str(tmp_path / "missing.txt")) == 1
+    err = capsys.readouterr().err
+    assert "Error:" in err and "Config not found" in err
+    assert "Traceback" not in err
+
+
+@pytest.mark.parametrize("change, expected", [
+    (("HEIGHT=8", "HEIGHT=a"), "HEIGHT: Invalid value"),
+    (("EXIT=9,7", "EXIT=40,7"), "EXIT: Out of bounds"),
+    (("WIDTH=10", "WIDTH=0"), "WIDTH: Invalid value"),
+    (("EXIT=9,7", "EXIT=0,0"), "EXIT: Invalid value"),
+    (("SEED=42", "SEED=42\nnot a pair"), "line 9: Bad syntax"),
+])
+def test_bad_config_names_the_problem(monkeypatch: pytest.MonkeyPatch,
+                                      write_config: WriteConfig,
+                                      capsys: pytest.CaptureFixture[str],
+                                      change: tuple[str, str],
+                                      expected: str) -> None:
+    """An invalid config fails with a message that names the key or line
+    at fault."""
+    assert run(monkeypatch, write_config(VALID_CONFIG.replace(*change))) == 1
+    assert expected in capsys.readouterr().err
+
+
+def test_unwritable_output_is_reported(monkeypatch: pytest.MonkeyPatch,
+                                       write_config: WriteConfig,
+                                       tmp_path: Path,
+                                       capsys: pytest.CaptureFixture[str]
+                                       ) -> None:
+    """An output file that cannot be written is an error message."""
+    folder = tmp_path / "a_folder"
+    folder.mkdir()
+    config = write_config(VALID_CONFIG.replace(
+        "OUTPUT_FILE=maze.txt", f"OUTPUT_FILE={folder}"))
+    assert run(monkeypatch, config) == 1
+    assert f"could not write {folder}" in capsys.readouterr().err
+
+
+def test_opens_the_interface_in_a_terminal(monkeypatch: pytest.MonkeyPatch,
+                                           valid_config: str) -> None:
+    """With a person at the terminal, the app runs on the config."""
+    opened: list[str] = []
+
+    def fake_run(app: AMazeIngApp) -> None:
+        """Record which config the app was started on."""
+        opened.append(app.config_path)
+
+    monkeypatch.setattr(AMazeIngApp, "run", fake_run)
+    pretend_terminal(monkeypatch)
+    assert script()["main"]([valid_config]) == 0
+    assert opened == [valid_config]
+
+
+@pytest.mark.parametrize("raised, code, message", [
+    (KeyboardInterrupt(), 130, ""),
+    (RuntimeError("boom"), 1, "Error: unexpected RuntimeError: boom"),
+])
+def test_interface_failures_are_reported(monkeypatch: pytest.MonkeyPatch,
+                                         valid_config: str,
+                                         capsys: pytest.CaptureFixture[str],
+                                         raised: BaseException, code: int,
+                                         message: str) -> None:
+    """Ctrl+C quits quietly, and anything unexpected is an error message
+    rather than a traceback."""
+    def fake_run(app: AMazeIngApp) -> None:
+        """Fail the way the test asks."""
+        raise raised
+
+    monkeypatch.setattr(AMazeIngApp, "run", fake_run)
+    pretend_terminal(monkeypatch)
+    assert script()["main"]([valid_config]) == code
+    err = capsys.readouterr().err
+    assert message in err
+    assert "Traceback" not in err
+
+
+def test_missing_interface_is_reported(monkeypatch: pytest.MonkeyPatch,
+                                       valid_config: str,
+                                       capsys: pytest.CaptureFixture[str]
+                                       ) -> None:
+    """Without Textual installed, the command says how to install it."""
+    # None in sys.modules makes importing the module raise ImportError
+    monkeypatch.setitem(sys.modules, "ui", None)
+    assert script()["main"]([valid_config]) == 1
+    assert "make install" in capsys.readouterr().err
 
 
 def test_importing_does_not_run(monkeypatch: pytest.MonkeyPatch,
