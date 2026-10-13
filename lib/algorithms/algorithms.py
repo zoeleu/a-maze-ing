@@ -23,10 +23,15 @@ import lib
 
 
 class MazeHistoryCallbackCell(Enum):
+    """What a generator or transformer reports about a cell to the history
+    callbacks."""
     MAYBE = auto()  # cell is being considered for opening a wall
     OPEN = auto()   # cell was opened
-    RESET = auto()  # cell was reset to its original state (loop erased walks)
-    MAZE_RESET = auto()  # entire maze was reset (bad seed)
+    # cell went back to how it was (an erased loop, or an undone opening)
+    RESET = auto()
+    # every wall was closed again: the maze was unsolvable, so generation
+    # starts over with a new seed. The cell it comes with means nothing.
+    MAZE_RESET = auto()
 
 
 # this is the type definition for a callback function to the history
@@ -37,16 +42,18 @@ history_callback = Callable[[lib.Cell, MazeHistoryCallbackCell], None]
 
 
 class GeneratorError(Exception):
-    pass
+    """Raised when a generator cannot build a maze at all."""
 
 
 class Generator(ABC):
+    """Base class of the maze generation algorithms. Subclasses implement
+    _generate(), and report what they do through _emit()."""
     # all the callbacks that need to be updated when a cell changes
     _history_callback: list[history_callback]
 
     def __init__(self) -> None:
+        """Create a generator with no history callback registered."""
         super().__init__()
-        # initialize the list
         self._history_callback = []
 
     def generate(self, maze: lib.Maze) -> None:
@@ -88,4 +95,5 @@ class Generator(ABC):
 
     @abstractmethod
     def _generate(self, maze: lib.Maze, seed: str | None) -> None:
-        pass
+        """Carve a maze into *maze*, which starts with every wall closed,
+        seeding the random module with *seed*."""

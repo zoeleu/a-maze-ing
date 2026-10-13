@@ -22,6 +22,9 @@ from .algorithms import Generator, MazeHistoryCallbackCell
 
 
 class WilsonsGenerator(Generator):
+    """Wilson's algorithm: loop-erased random walks, which give every
+    possible perfect maze the same chance."""
+
     def _generate(self, maze: lib.Maze, seed: str | None) -> None:
         """Generate a perfect maze using Wilson's algorithm.
 

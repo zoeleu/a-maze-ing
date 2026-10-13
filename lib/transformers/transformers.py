@@ -22,10 +22,14 @@ from lib.algorithms import MazeHistoryCallbackCell, history_callback
 
 
 class MazeTransformer(ABC):
+    """Base class of the transformations applied to a generated maze.
+    Subclasses implement _transform(), and report what they do through
+    _emit()."""
     # check lib/algorithms/algorithms.py, the architecture is similar
     _history_callback: list[history_callback]
 
     def __init__(self) -> None:
+        """Create a transformer with no history callback registered."""
         super().__init__()
         self._history_callback = []
 
@@ -47,4 +51,5 @@ class MazeTransformer(ABC):
 
     @abstractmethod
     def _transform(self, maze: lib.Maze, seed: str | None) -> bool:
-        pass
+        """Change *maze* in place, seeding the random module with *seed*.
+        Returns True if the goal was fully achieved."""

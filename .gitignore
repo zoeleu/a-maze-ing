@@ -1,7 +1,8 @@
 __pycache__
-.venv
+.venv*
 .mlx
 *.pdf
 *.txt
 .mypy_cache
 .claude
+.pytest_cache

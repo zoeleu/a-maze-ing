@@ -21,13 +21,20 @@ they have.
 The screens compose a MazeBody holding `#too-narrow`, `#maze-panel` (the
 maze, inside `#maze-holder`, which centers it once stacked) and `#side` (the
 panels). The body lays them out again whenever its own size changes.
+
+When the terminal is too narrow to draw the maze at all, the notice that
+replaces it offers to show the maze in an MLX window instead (see
+lib/ui/mlx_window.py), and says how that window is doing.
 """
 from rich.text import Text
+from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
+from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Static
+from textual.widgets import Button, Static
 
+from ..mlx_window import WindowState
 from ..renderer import AMazeIngRenderer, drawing_width
 
 # Sizes from the stylesheet, in terminal cells
@@ -64,6 +71,36 @@ def zoom_allowed(screen: Screen[None], action: str) -> bool | None:
     return renderer.expanded == (action == "shrink")
 
 
+class TooNarrowNotice(Vertical):
+    """Replaces the maze when the terminal is too narrow for it: says how
+    many columns it needs, and offers a button to open it in an MLX
+    window, or says how that window is doing."""
+
+    def compose(self) -> ComposeResult:
+        """The explanation, and the button to open the window."""
+        yield Static(id="too-narrow-text")
+        yield Button("Open in a window (W)", id="open-window", compact=True,
+                     action="app.open_window")
+
+    def show_state(self, needed: int, state: WindowState,
+                   error: str | None) -> None:
+        """Explain that the maze needs *needed* columns, and offer the
+        window according to its *state*, with *error* if it failed."""
+        text = Text.assemble(
+            ("Terminal too narrow", "bold"),
+            (f"\nThe maze needs at least {needed} columns.", MUTED))
+        button = self.query_one(Button)
+        if state is WindowState.OPEN:
+            text.append("\n\nIt is shown in a separate window.")
+        elif state is WindowState.FAILED:
+            text.append(f"\n\nCould not open a window: {error}.")
+            button.label = "Try again (W)"
+        else:
+            button.label = "Open in a window (W)"
+        button.display = state is not WindowState.OPEN
+        self.query_one("#too-narrow-text", Static).update(text)
+
+
 class MazeBody(Horizontal):
     """The space between the title bar and the status line.
 
@@ -71,14 +108,22 @@ class MazeBody(Horizontal):
     below it once it would have to scroll sideways. The maze uses full-size
     tiles when they fit in the space left to it, and compact ones otherwise.
     When even the compact maze is more than TOO_NARROW times the terminal's
-    width, a notice replaces it.
+    width, a TooNarrowNotice replaces it, which offers the MLX window.
     """
+
+    class Changed(Message):
+        """Posted when the body was laid out again or removed, so the app
+        can close the MLX window once the maze fits again."""
 
     def __init__(self, cols: int, rows: int) -> None:
         """Create the body for a maze of *cols* x *rows* cells."""
         super().__init__(id="body")
         self.cols = cols
         self.rows = rows
+        self.too_narrow = False  # the maze is replaced by the notice
+        self.window_state = WindowState.HIDDEN  # as the notice shows it
+        self.window_error: str | None = None
+        self._needed = 0  # terminal columns the maze needs
 
     def on_resize(self) -> None:
         """Lay the maze and the panels out for the new size."""
@@ -97,10 +142,10 @@ class MazeBody(Horizontal):
         # below is the space available for the maze when the side panels are
         # below it
         below = width - PANEL_FRAME_WIDTH - SCROLLBAR
-        # stacked is True when the maze and side panels are stacked vertically
-        # they should be stacked vertically when the maze would have to
-        # scroll sideways to fit beside the side panels, or when the maze is
-        # too narrow to be drawn at all
+        # stacked is True when the maze and side panels are stacked
+        # vertically, which happens when even the compact maze would have to
+        # scroll sideways beside the side panels (always the case when the
+        # terminal is too narrow to draw the maze at all)
         stacked = smallest > beside
         too_narrow = smallest > TOO_NARROW * self.screen.size.width
         # the room available for the maze, either beside or below
@@ -112,17 +157,34 @@ class MazeBody(Horizontal):
         self.query_one(AMazeIngRenderer).fit(
             room, height - PANEL_FRAME_HEIGHT)
         self.set_class(stacked, "-stacked")
-        # adjust the side panel's width and visibility
+        # adjust the maze panel's width and visibility
         panel = self.query_one("#maze-panel")
         panel.styles.max_width = max(room, 0) + PANEL_FRAME_WIDTH
         panel.display = not too_narrow
 
         # show a notice if the terminal is too narrow
-        notice = self.query_one("#too-narrow", Static)
-        notice.display = too_narrow
-        needed = self.screen.size.width - width + smallest \
+        self.too_narrow = too_narrow
+        self.query_one(TooNarrowNotice).display = too_narrow
+        self._needed = self.screen.size.width - width + smallest \
             + PANEL_FRAME_WIDTH + SCROLLBAR
-        notice.update(Text.assemble(
-            ("Terminal too narrow", "bold"),
-            (f"\nThe maze needs at least {needed} columns.", MUTED)))
+        self._update_notice()
         self.screen.refresh_bindings()  # whether expand / shrink apply
+        # the app closes the window if the maze fits again; posted to it
+        # directly, as the renderer does (see AMazeIngRenderer._changed)
+        self.app.post_message(self.Changed())
+
+    def on_unmount(self) -> None:
+        """Let the app close the window if no maze is left to mirror."""
+        self.app.post_message(self.Changed())
+
+    def set_window_state(self, state: WindowState,
+                         error: str | None) -> None:
+        """Have the notice show the MLX window's *state*."""
+        if (state, error) != (self.window_state, self.window_error):
+            self.window_state, self.window_error = state, error
+            self._update_notice()
+
+    def _update_notice(self) -> None:
+        """Bring the notice up to date."""
+        self.query_one(TooNarrowNotice).show_state(
+            self._needed, self.window_state, self.window_error)

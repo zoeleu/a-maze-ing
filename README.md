@@ -35,7 +35,21 @@ make install
 
 This creates a virtual environment in `.venv` and installs the dependencies
 listed in `requirements.txt` (Textual and Rich for the interface; flake8,
-mypy and build for development).
+mypy and build for development) and MiniLibX. `run`, `test`, `lint` and the
+other rules do this first if it has not been done yet.
+
+To use another Python, give its command as `PY`, on any rule:
+
+```bash
+make PY=python3.13 test
+make PY=pypy3 run
+```
+
+Each Python gets its own virtual environment (`.venv` for `python3`,
+`.venv-<name>` for the others, e.g. `.venv-pypy3`), so switching back and
+forth never mixes them; `make PY=pypy3 python` shows which interpreter a
+rule would use. On Debian and Ubuntu, PyPy needs the `pypy3-venv` package
+to create a virtual environment.
 
 ### Running
 
@@ -57,9 +71,11 @@ interface.
 
 | Rule          | What it does                                                   |
 |---------------|----------------------------------------------------------------|
-| `install`     | Create `.venv` and install the dependencies                    |
+| `install`     | Create the virtual environment and install the dependencies    |
+| `python`      | Show the Python and virtual environment the rules use          |
 | `run`         | Run `a_maze_ing.py` with `config.txt`                          |
 | `debug`       | Run it under Python's debugger, `pdb`                          |
+| `test`        | Run the `pytest` suite in `tests/`                             |
 | `clean`       | Remove `__pycache__`, `.mypy_cache`, build leftovers           |
 | `fclean`      | `clean`, plus the built package and the MiniLibX download      |
 | `lint`        | `flake8` and `mypy` with the flags required by the subject     |
@@ -156,6 +172,7 @@ next to panels with the config (including the seed in use) and statistics
 | `M` | Switch between perfect and Pac-Man mode, keeping the seed        |
 | `G` | Watch an animated replay of how the maze was built               |
 | `Z` | Expand / shrink the maze when it does not fit the terminal       |
+| `W` | Open the maze in an MLX window, when the terminal is too narrow  |
 | `Q` | Quit                                                             |
 
 In the replay screen: `Space` pauses or resumes, `+`/`-` change the speed,
@@ -163,6 +180,15 @@ In the replay screen: `Space` pauses or resumes, `+`/`-` change the speed,
 
 When the config is invalid, an error screen shows the file with the faulty
 line highlighted; fix the file and press `R` to reload it.
+
+When the terminal is too narrow to draw the maze at all, a notice replaces
+it with an **Open in a window** button (or press `W`) that shows the maze in
+a separate MiniLibX (MLX) window, kept in sync with the interface: colours,
+the path, and the replay all show there as they change. Nothing opens until
+you ask. Close it with its close button or `Esc`; it also closes once the
+terminal is wide enough again. The window runs in the interface's thread:
+`mlx_loop()` never returns on its own, so it is run one pass at a time from
+a timer (see `lib/ui/mlx_window.py`).
 
 ## How the maze is generated
 

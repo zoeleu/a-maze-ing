@@ -29,7 +29,8 @@ from ..renderer import (CYAN, GOLD, GROUND, LOGO_COLOURS, UNTOUCHED,
                         WALL_COLOURS, AMazeIngRenderer)
 from ..session import ALGORITHMS, ConfigProblem, Replay, Session
 from .error import ProblemFound
-from .layout import ZOOM_BINDINGS, MazeBody, zoom_allowed
+from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
+                     zoom_allowed)
 from .titlebar import TitleBar
 
 MUTED = "#8A939C"
@@ -70,7 +71,7 @@ class GeneratorScreen(Screen[None]):
         yield TitleBar(self.session.config_path)
         with MazeBody(self.session.config.width,
                       self.session.config.height):
-            yield Static(id="too-narrow", classes="panel")
+            yield TooNarrowNotice(id="too-narrow", classes="panel")
             with Center(id="maze-holder"):
                 with ScrollableContainer(id="maze-panel"):
                     yield AMazeIngRenderer(dim_untouched=True)
@@ -112,7 +113,7 @@ class GeneratorScreen(Screen[None]):
         return True
 
     def _tick(self) -> None:
-        """Replay the next few wall changes."""
+        """Replay the next few history events."""
         if self.paused or self.replay.done:
             return
         self.frame += 1
@@ -215,12 +216,12 @@ class GeneratorScreen(Screen[None]):
         self._changed()
 
     def action_slower(self) -> None:
-        """Replay fewer walls per frame."""
+        """Replay fewer history events per frame."""
         self.speed = max(0, self.speed - 1)
         self._draw()
 
     def action_faster(self) -> None:
-        """Replay more walls per frame."""
+        """Replay more history events per frame."""
         self.speed = min(len(SPEEDS) - 1, self.speed + 1)
         self._draw()
 

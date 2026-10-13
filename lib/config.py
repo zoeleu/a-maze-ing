@@ -21,6 +21,8 @@ import re
 
 
 class ConfigDict(TypedDict):
+    """The parsed values of a config, keyed like the config file, for
+    Config.from_dict()."""
     WIDTH: int
     HEIGHT: int
     ENTRY: tuple[int, int]
@@ -32,15 +34,16 @@ class ConfigDict(TypedDict):
 
 class Config:
     """A class that reads a config file and sets the attributes of the Config
-    object accordingly. The config file should have the following format:
+    object accordingly. The config file should have the following format,
+    one KEY=VALUE per line, with lines starting with # ignored:
 
-    WIDTH=(int)
-    HEIGHT=(int)
-    ENTRY=(x, y)
-    EXIT=(x, y)
-    OUTPUT_FILE=(str)
-    PERFECT=(True|False)
-    SEED=(str, optional)
+    WIDTH=<int>
+    HEIGHT=<int>
+    ENTRY=<x>,<y>
+    EXIT=<x>,<y>
+    OUTPUT_FILE=<path>
+    PERFECT=<True|False>
+    SEED=<str>          (optional)
     """
     width: int
     height: int
@@ -98,12 +101,12 @@ class Config:
                              f"{mandatory.difference(kv.keys())}")
 
         for key in kv.keys():
-            # If the key doesn't exist in any of the dictionaries,
-            # it is ignored. Mostly done to satisfy type checking.
+            # unknown keys are skipped with a warning
             if key not in check_dict:
                 print(f"Warning: Unknown key `{key}` in config file."
                       f"Ignoring...")
                 continue
+            # only possible if check_dict and parse_dict drift apart
             if key not in parse_dict:
                 print(f"Warning: key `{key}` was found in config file but no "
                       f"parser is defined."
@@ -154,6 +157,9 @@ class Config:
         return instance
 
     def __read_file_dict(self, filename: str) -> dict[str, str]:
+        """Read *filename* into a KEY -> VALUE dict of raw strings, skipping
+        comments and blank lines. A key given twice keeps its last value.
+        Raises ValueError for a line that is not KEY=VALUE."""
         with open(filename) as file:
             lines_read = file.readlines()
 

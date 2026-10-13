@@ -23,10 +23,12 @@ from typing import NamedTuple
 from rich.style import Style
 from rich.text import Text
 from textual.color import Color
+from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
 from lib import Cell, Direction, Maze
+from .mlx_window import Frame
 from .session import CLOSED
 
 
@@ -69,8 +71,8 @@ class Tile(Enum):
     as (2R + 1) x (2C + 1) tiles: cells on odd rows and columns, with the
     walls between them on the even ones."""
 
-    # auto() gives each member a unique value, which is not used here, saves
-    # us the effort of assigning them manually
+    # auto() numbers the members for us; the values themselves are never
+    # used
     WALL = auto()
     LOGO = auto()
     OPEN = auto()
@@ -89,6 +91,10 @@ class AMazeIngRenderer(Widget):
     For replays it can also dim the cells no passage reaches yet and
     highlight the trail being carved.
     """
+
+    class Changed(Message):
+        """Posted when what the renderer draws changed, so a copy of the
+        drawing elsewhere (the MLX window) can follow."""
 
     DEFAULT_CSS = """
     AMazeIngRenderer {
@@ -128,9 +134,46 @@ class AMazeIngRenderer(Widget):
         self._fit()
         self._size_to_drawing()
         self.refresh()
+        self._changed()
 
-    # called whenever the widget's size changes, to pick the tile size that
-    # fits
+    def _changed(self) -> None:
+        """Tell the app the drawing changed; only once mounted, as nobody
+        listens before that. Posted to the app directly: a message does not
+        bubble past its sender, and the replay redraws from its screen's
+        timer, so the screen is the sender and the app would never see it."""
+        if self.is_mounted:
+            self.app.post_message(self.Changed())
+
+    def watch_wall_colour(self) -> None:
+        """The walls changed colour."""
+        self._changed()
+
+    def watch_logo_colour(self) -> None:
+        """The 42 pattern changed colour."""
+        self._changed()
+
+    def watch_show_path(self) -> None:
+        """The path was shown or hidden."""
+        self._changed()
+
+    def frame(self) -> Frame | None:
+        """The drawing as a Frame for the MLX window: the same tiles, each
+        one its Tile's position in the enum, with their colours. None before
+        show()."""
+        if self.maze is None:
+            return None
+        tiles = self._tiles()
+        colours = self._colours()
+        order = list(Tile)
+        code = {tile: index for index, tile in enumerate(order)}
+        rgb = [Color.parse(colours[tile]).rgb for tile in order]
+        return Frame(
+            width=len(tiles[0]), height=len(tiles),
+            tiles=bytes(code[tile] for line in tiles for tile in line),
+            colours=tuple((r << 16) | (g << 8) | b for r, g, b in rgb))
+
+    # called by MazeBody whenever its size changes, to pick the tile size
+    # that fits
     def fit(self, width: int, height: int) -> None:
         """Use full-size tiles if the maze fits in *width* x *height*
         terminal cells that way, and compact ones otherwise."""
@@ -139,7 +182,7 @@ class AMazeIngRenderer(Widget):
 
     def _fit(self) -> None:
         """Pick the tile size for the current maze and room."""
-        # if the maze is None, this was called before show() was called
+        # nothing to fit until show() gave a maze and fit() gave the room
         if self.maze is None or self._room is None:
             return
         width, height = self._room
@@ -187,8 +230,18 @@ class AMazeIngRenderer(Widget):
         # ignore and return early
         if self.maze is None:
             return Text()
-        # define colours
-        colours = {
+        colours = self._colours()
+        text = Text(no_wrap=True, end="")
+        # choose drawing method, half cells or full cells
+        if self.compact:
+            self._draw_halves(text, self._tiles(), colours)
+        else:
+            self._draw_wide(text, self._tiles(), colours)
+        return text
+
+    def _colours(self) -> dict[Tile, str]:
+        """The colour of each tile, as a hex string."""
+        return {
             Tile.WALL: self.wall_colour,
             Tile.LOGO: self.logo_colour,
             Tile.OPEN: GROUND.hex,
@@ -199,13 +252,6 @@ class AMazeIngRenderer(Widget):
             Tile.ENTRY: CYAN.hex,
             Tile.EXIT: CYAN.hex,
         }
-        text = Text(no_wrap=True, end="")
-        # choose drawing method, half cells or full cells
-        if self.compact:
-            self._draw_halves(text, self._tiles(), colours)
-        else:
-            self._draw_wide(text, self._tiles(), colours)
-        return text
 
     @staticmethod
     def _draw_wide(text: Text, tiles: list[list[Tile]],
@@ -292,7 +338,7 @@ class AMazeIngRenderer(Widget):
             cell = (row, col)
             top, left = 2 * row + 1, 2 * col + 1
             if maze.in_logo(cell):
-                # join neighbouring logo cells so the digits are solid
+                # the logo cell itself, in the logo colour
                 tiles[top][left] = Tile.LOGO
 
                 # joins the edges of the logo, drawing the wall between the
@@ -304,7 +350,8 @@ class AMazeIngRenderer(Widget):
                 # a logo cell never has an open passage
                 continue
 
-            # draws untouched cells
+            # the cell itself, dimmed if replays asked for it and none of
+            # its walls is down yet
             untouched = self.dim_untouched and walls == CLOSED
             tiles[top][left] = Tile.UNTOUCHED if untouched else Tile.OPEN
 
@@ -343,7 +390,7 @@ class AMazeIngRenderer(Widget):
                 # paint the passage from the previous cell to this one
                 before_row, before_col = cells[index - 1]
 
-                # this will get the 'step' from the previous cell to this one
-                # painting them with the same color to show that they are
-                # connected
+                # the wall tile between two adjacent cells sits halfway
+                # between theirs: ((2r + 1) + (2r' + 1)) / 2 = r + r' + 1,
+                # and the same for columns
                 tiles[row + before_row + 1][col + before_col + 1] = tile

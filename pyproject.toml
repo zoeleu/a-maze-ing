@@ -21,8 +21,19 @@ exclude = ["lib.ui*"]
 [tool.mypy]
 python_version = "3.11"
 exclude = [
-    '^\.venv/',
+    '^\.venv[^/]*/',  # .venv, .venv-pypy3...: one per Python
     '^\.claude/',
     '^build/',
     '^dist/',
+]
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+# -n auto: one worker per CPU core (pytest-xdist); pass -n 0 to run serially
+addopts = ["-ra", "--import-mode=importlib", "-n", "auto"]
+strict = true
+markers = [
+    "ui: drives the Textual interface through a headless pilot",
 ]

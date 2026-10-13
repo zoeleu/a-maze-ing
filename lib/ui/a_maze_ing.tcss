@@ -138,6 +138,10 @@ TitleBar {
     color: $amber;
 }
 
+#open-window {
+    margin-top: 1;
+}
+
 .panel {
     height: auto;
     border: solid $edge;

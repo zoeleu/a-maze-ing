@@ -2,7 +2,9 @@
 textual>=8.0
 rich>=13.0
 
-# Development: linting, type checking and packaging
+# Development: testing, linting, type checking and packaging
+pytest>=9.1
+pytest-xdist[psutil]>=3.8
 flake8>=7.0
 mypy>=1.10
 build>=1.2

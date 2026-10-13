@@ -24,7 +24,8 @@ from .transformers import MazeTransformer
 
 class TaintTransformer(MazeTransformer):
     """This transformer 'taints' the maze, by making it imperfect.
-    It removes all dead ends, and opens the corners and center."""
+    It removes as many dead ends as it can, and opens the corners and
+    center."""
 
     BLOCK = 3
 
@@ -40,7 +41,8 @@ class TaintTransformer(MazeTransformer):
         do not count.
 
         Reports to the history callbacks: MAYBE when a wall is tried, RESET
-        when it has to be closed again, and OPEN when an opening stays.
+        when it has to be closed again or a dead end cannot be fixed, and
+        OPEN when an opening stays.
         """
         # be deterministic, so the same maze is always transformed the same way
         random.seed(seed or None)
@@ -83,8 +85,8 @@ class TaintTransformer(MazeTransformer):
             below = (top[0] + 1, top[1])
             opened = maze.open_path(top, lib.Direction.SOUTH)
             if maze.is_open(top, lib.Direction.SOUTH):
-                # mark the corridor cells so Maze.render() draws them as O
-                # (debugging aid only, does not change the maze)
+                # mark the corridor cells so Maze.debug_render() draws them
+                # as O (debugging aid only, does not change the maze)
                 maze.marked.update({top, below})
             if opened:
                 self._emit(top, MazeHistoryCallbackCell.OPEN)
@@ -95,7 +97,7 @@ class TaintTransformer(MazeTransformer):
         never a dead end. Skips a wall that would create a 3x3 open area, or
         that touches the logo."""
         last_row, last_col = maze.rows - 1, maze.cols - 1
-        # for each cell in the corners
+        # for each corner cell
         for corner in ((0, 0), (0, last_col), (last_row, 0),
                        (last_row, last_col)):
             # mark them as processing
@@ -105,10 +107,11 @@ class TaintTransformer(MazeTransformer):
             for side in lib.Direction:
                 # get the neighbour
                 other = maze.neighbour(corner, side)
-                # guard, defensive programming against potential crashes
+                # skip the sides facing out of the maze
                 if other is None or other not in maze:
                     continue
-                # keep going if the path is already open
+                # skip walls that cannot be opened: already open, or
+                # touching the logo
                 if not maze.open_path(corner, side):
                     continue
                 # mark the neighbour as processing
@@ -150,7 +153,8 @@ class TaintTransformer(MazeTransformer):
         return False
 
     def _remove_dead_end(self, maze: lib.Maze, cell: lib.Cell) -> bool:
-        """Try to open one of the walls around the dead end."""
+        """Try to open one of the walls around the dead end, without
+        creating an open BLOCK x BLOCK area. Returns True on success."""
         candidates: list[tuple[lib.Direction, lib.Cell]] = []
         for side in lib.Direction:
             other = maze.neighbour(cell, side)
@@ -170,7 +174,8 @@ class TaintTransformer(MazeTransformer):
         self._emit(cell, MazeHistoryCallbackCell.MAYBE)
         # for each candidate for opening
         for side, other in candidates:
-            # if its already open, or an error occurred, try another one
+            # the candidates are closed walls between playable cells, so
+            # this should always open; skip the wall just in case
             if not maze.open_path(cell, side):
                 continue
             # mark the other one as processing too
@@ -194,12 +199,12 @@ class TaintTransformer(MazeTransformer):
         """Whether a BLOCK x BLOCK fully open area contains the cell."""
         row, col = cell
         span = range(self.BLOCK)
-        # the possible box positions
+        # the top-left corners of every box that contains the cell
         corners = ((row - dr, col - dc) for dr in span for dc in span)
         for top, left in corners:
             # the set of cells in the box
             block = {(top + r, left + c) for r in span for c in span}
-            # if they're all open
+            # if every passage between the box's cells is open
             if all(maze.is_open(inner, side)
                    for inner in block for side in lib.Direction
                    if maze.neighbour(inner, side) in block):

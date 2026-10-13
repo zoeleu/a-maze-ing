@@ -136,8 +136,8 @@ def load_config(path: str) -> Config:
         missing = re.findall(r"'([A-Z_]+)'", str(error))
         if str(error).startswith("Missing") and missing:
             raise ConfigProblem("Missing keys",
-                                # join() sorts the keys so the message is
-                                # consistent
+                                # sorted, so the message does not depend on
+                                # the order of the set in the error
                                 f"Add {', '.join(sorted(missing))} "
                                 f"to the config.", path) from None
         raise ConfigProblem("Invalid config", str(error), path) from None
@@ -152,16 +152,15 @@ def load_config(path: str) -> Config:
                                 path, line=int(syntax.group(1)) - 1) from None
         # Config's messages read "Invalid value `V` at key `KEY`: reason"
         # the regex captures the key and the reason, to show in the UI
-        # \s matches whitespace, and * means 0 or more of the previous pattern
+        # \s matches whitespace; + means 1 or more of the previous pattern,
+        # and * means 0 or more. \s+ is needed after "at key" because one of
+        # Config's messages has a run of spaces there
         # [^`]+ matches one or more characters that are not a backtick
-        # (^ symbolizes 'anything that is not the next character')
-        # we are also capturing the reason, which can be anything,
-        # so we just capture the rest of the string with the . pattern,
-        # which matches any character, and the * pattern, which means 0
-        # or more of the previous pattern
-        # tldr: we capture everything from the first backtick until the
-        # second backtick, and we capture everything after this pattern:
-        # "at key `KEY`:(whitespace)", to grap the reason for the error
+        # (a ^ at the start of [...] means 'any character except these')
+        # (.*) captures the reason: the rest of the string, since . matches
+        # any character
+        # tldr: we capture the key between the backticks that follow
+        # "at key", and everything after "`KEY`:(whitespace)" as the reason
         match = re.search(r"at key\s+`([^`]+)`:\s*(.*)", str(error))
         if match is None:
             raise ConfigProblem("Invalid value", str(error), path) from None
@@ -237,7 +236,7 @@ class MazeRun:
     dead_ends: int
     braided: bool  # False if dead ends were left in an imperfect maze
     elapsed: float  # seconds
-    write_error: str | None  # why the output file was not written, if not
+    write_error: str | None  # why the output file was not written, or None
 
 
 @dataclass
@@ -382,9 +381,9 @@ class Replay:
     @property
     def phase(self) -> str:
         """What the replayed changes are doing at this point.
-        "done" means the maze is finished generating,
-        "carving" means the generator is still working,
-        "braiding" means the maze is being braided to remove dead ends."""
+        "carving" means the replay is still in the generator's events,
+        "braiding" means it is in the transformer's, removing dead ends,
+        "done" means every event has been replayed."""
         if self.done:
             return "done"
         return "carving" if self.position < self.run.carved else "braiding"

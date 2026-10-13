@@ -27,6 +27,8 @@ Cell = Tuple[int, int]
 
 
 class Direction(IntFlag):
+    """The four sides of a cell, as the bits the output file uses. A
+    combination of them is the set of a cell's closed walls."""
     NORTH = 1
     EAST = 2
     SOUTH = 4
@@ -58,6 +60,8 @@ class Direction(IntFlag):
         return _STEP[self]
 
     def __str__(self) -> str:
+        """A single side as its letter (N, E, S or W), as used for the
+        path in the output file; any other combination as a hex digit."""
         if self == Direction.NORTH:
             return "N"
         elif self == Direction.EAST:
@@ -70,15 +74,15 @@ class Direction(IntFlag):
             return f"{self.value:01x}"
 
     def has(self, other: "Direction | int") -> bool:
-        """Check if this direction has a wall in the given direction."""
+        """Whether any of the walls in *other* is closed here."""
         return bool(self & other)
 
     def __sub__(self, other: "Direction | int") -> "Direction":
-        """Remove a wall from this direction."""
+        """These walls without the ones in *other*."""
         return Direction(self & ~other)
 
     def __add__(self, other: "Direction | int") -> "Direction":
-        """Add a wall to this direction."""
+        """These walls plus the ones in *other*."""
         return Direction(self | other)
 
 
@@ -126,15 +130,20 @@ def in_logo(cell: Cell, rows: int, cols: int) -> bool:
 
 
 class Maze:
+    """A grid of cells, each holding its closed walls, with the 42 logo in
+    the middle when the maze is large enough. Cells are (row, col), while
+    the config gives the entry and exit as (x, y)."""
     grid: List[List[Direction]]
     rows: int
     cols: int
     center_cell: Cell
     has_logo: bool
     config: Config
-    marked: set[Cell]  # cells render() draws as O (debugging aid)
+    marked: set[Cell]  # cells debug_render() draws as O (debugging aid)
 
     def __init__(self, config: Config) -> None:
+        """Create a maze of the config's size with every wall closed.
+        Prints a warning on stderr if it is too small for the 42 logo."""
         rows = config.height
         cols = config.width
         self.config = config
@@ -173,16 +182,16 @@ class Maze:
         return self.grid[row][col]
 
     def neighbour(self, cell: Cell, side: Direction) -> Cell | None:
-        """Returns the cell's neighbour in the given direction"""
+        """Returns the cell's neighbour in the given direction. The
+        neighbour may be outside the maze; None only if *cell* itself is."""
         row, col = cell
         if cell not in self:
             return None
         return (row + side.step[0], col + side.step[1])
 
     def in_logo(self, cell: Cell) -> bool:
-        """Tells you if a given cell is part of the maze's 42 logo
-        Note: this is only valid if the maze is large enough to contain
-        the logo, otherwise it will always return False."""
+        """Tells you if a given cell is part of the maze's 42 logo.
+        Always False if the maze is too small to contain the logo."""
         return in_logo(cell, self.rows, self.cols)
 
     def is_open(self, cell: Cell, side: Direction) -> bool:
@@ -201,9 +210,8 @@ class Maze:
             if self.is_open(cell, side):
                 yield side
 
-    def render(self) -> str:
-        """Render the maze and its 42 logo as an ASCII map.
-        REMOVE AFTERWARDS, THIS IS FOR DEBUGGING PURPOSES ONLY"""
+    def debug_render(self) -> str:
+        """Render the maze and its 42 logo as an ASCII map."""
         lines: List[str] = []
         # the config gives (x, y), while cells are (row, col)
         entry = (self.config.entry[1], self.config.entry[0])
@@ -270,7 +278,11 @@ class Maze:
         return "\n".join(lines)
 
     def get_output(self) -> str:
-        """Special format."""
+        """The maze in the output file format: one hex digit of closed
+        walls per cell, a blank line, the entry and the exit as x,y, then
+        the shortest path as N, E, S and W letters.
+
+        Raises ValueError if the exit cannot be reached."""
         output = ""
         last_row = 0
         for row, _, directions in self:

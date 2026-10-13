@@ -123,12 +123,12 @@ class ErrorScreen(Screen[None]):
             # with the wrong part in bold red
             row = Text.assemble(
                 (f"› {label} │ ", RED), line[:start],
-                # the caret line goes under it
                 (line[start:end], f"bold {RED}"), line[end:])
             # pad with spaces so the red background covers the full width
             row.pad_right(width - len(row))
             row.stylize(f"on {RED_WASH}")
             rows.append(row)
+            # the caret line goes under it
             rows.append(Text.assemble(
                 (" " * (digits + 2) + " │ ", GUTTER), (caret, RED)))
         return Text("\n").join(rows)

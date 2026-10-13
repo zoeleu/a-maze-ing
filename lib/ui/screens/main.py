@@ -27,7 +27,8 @@ from textual.widgets import Footer, Static
 from ..renderer import LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer
 from ..session import ConfigProblem, MazeRun, Session
 from .error import ProblemFound
-from .layout import ZOOM_BINDINGS, MazeBody, zoom_allowed
+from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
+                     zoom_allowed)
 from .generator import GeneratorScreen
 from .titlebar import TitleBar
 
@@ -81,7 +82,7 @@ class MainScreen(Screen[None]):
         yield Static(id="warning", classes="banner")
         with MazeBody(self.session.config.width,
                       self.session.config.height):
-            yield Static(id="too-narrow", classes="panel")
+            yield TooNarrowNotice(id="too-narrow", classes="panel")
             with Center(id="maze-holder"):
                 with ScrollableContainer(id="maze-panel"):
                     yield AMazeIngRenderer()
