@@ -20,6 +20,11 @@ from .algorithms import (Generator, GeneratorError, MazeHistoryCallbackCell,
 from .wilsons import WilsonsGenerator
 from .backtracker import BacktrackerGenerator
 
+# The generators, by the name the config's ALGORITHM key gives them
+GENERATORS: dict[str, type[Generator]] = {
+    "wilson": WilsonsGenerator,
+    "backtracker": BacktrackerGenerator,
+}
 
 __all__ = [
     "Generator",
@@ -29,4 +34,5 @@ __all__ = [
     "progress_callback",
     "WilsonsGenerator",
     "BacktrackerGenerator",
+    "GENERATORS",
 ]

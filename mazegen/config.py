@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Callable, Any, TypedDict
 import re
 
-from typing_extensions import Self
+from typing_extensions import NotRequired, Self
 
 # The widest and tallest maze, in cells: a sensible default. A cell takes
 # about 2.1 KB while the maze is built and recorded for its replay, and the
@@ -37,7 +37,10 @@ class ConfigDict(TypedDict):
     EXIT: tuple[int, int]
     OUTPUT_FILE: str
     PERFECT: bool
-    SEED: str | None
+    # optional, like in the file: a random seed, and Wilson's algorithm,
+    # when they are left out
+    SEED: NotRequired[str | None]
+    ALGORITHM: NotRequired[str]
 
 
 class Config:
@@ -52,6 +55,7 @@ class Config:
     OUTPUT_FILE=<path>
     PERFECT=<True|False>
     SEED=<str>          (optional)
+    ALGORITHM=<name>    (optional: wilson, the default, or backtracker)
     """
     width: int
     height: int
@@ -60,6 +64,7 @@ class Config:
     output_file: str
     perfect: bool
     seed: str | None = None
+    algorithm: str = "wilson"
 
     def __init__(self, config_path: str):
         """Reads a config file and sets the attributes of the Config object
@@ -81,7 +86,10 @@ class Config:
             "EXIT": "^[0-9]+,[0-9]+$",
             "OUTPUT_FILE": r"^(?!.*\0).+$",
             "PERFECT": "^(True|False)$",
-            "SEED": "^.*$"
+            "SEED": "^.*$",
+            # any text: validate() checks it names a known algorithm, and
+            # says which ones there are
+            "ALGORITHM": "^.*$",
         }
 
         # Defines the functions that parse the values
@@ -92,7 +100,8 @@ class Config:
             "EXIT": lambda e: tuple(map(int, e.split(","))),
             "OUTPUT_FILE": lambda o: o,
             "PERFECT": lambda p: p == "True",
-            "SEED": lambda s: s
+            "SEED": lambda s: s,
+            "ALGORITHM": lambda a: a,
         }
 
         mandatory = {
@@ -130,8 +139,8 @@ class Config:
     def validate(self) -> None:
         """Checks that the values make a maze that can be built: a size
         between 1 and MAX_SIZE, and an entry and exit that are different
-        cells, inside the maze and not on the 42 pattern. Raises a
-        ValueError otherwise.
+        cells, inside the maze and not on the 42 pattern, and a known
+        algorithm. Raises a ValueError otherwise.
 
         Config(path) calls it; call it yourself after Config.from_dict(),
         which does not.
@@ -167,6 +176,13 @@ class Config:
             if in_logo((y, x), self.height, self.width):
                 raise ValueError(f"Invalid value `{x},{y}` at key `{key}`: "
                                  f"falls on the 42 pattern")
+
+        # imported here for the same reason as mazegen.maze above
+        from mazegen.algorithms import GENERATORS
+        if self.algorithm not in GENERATORS:
+            raise ValueError(f"Invalid value `{self.algorithm}` at key "
+                             f"`ALGORITHM`: must be "
+                             f"{' or '.join(GENERATORS)}")
 
     @classmethod
     def from_dict(cls, config_dict: ConfigDict) -> Self:

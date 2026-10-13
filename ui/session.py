@@ -28,8 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
 
-from mazegen import (BacktrackerGenerator, Cell, Config, Direction,
-                     Generator, GeneratorError, Maze,
+from mazegen import (GENERATORS, BacktrackerGenerator, Cell, Config,
+                     Direction, Generator, GeneratorError, Maze,
                      MazeHistoryCallbackCell, TaintTransformer,
                      WilsonsGenerator, progress_callback)
 
@@ -272,6 +272,8 @@ class Session:
         """
         self.config = load_config(self.config_path)
         self.seed = self.config.seed or _new_seed()
+        # start with the algorithm the config asks for; A switches it later
+        self.algorithm = algorithm_index(self.config.algorithm)
         self.current = self._build()
 
     def regenerate(self) -> MazeRun:
@@ -368,6 +370,16 @@ def describe(step: str, done: int, total: int) -> str:
     if total == 0:
         return f"{step}..."
     return f"{step} {done / total:.0%} ({done:,} / {total:,})"
+
+
+def algorithm_index(name: str) -> int:
+    """Where the generator the config calls *name* sits in ALGORITHMS, the
+    list the interface shows; 0, the first, if it is not in the list."""
+    generator = GENERATORS[name]
+    for index, (_, algorithm) in enumerate(ALGORITHMS):
+        if algorithm is generator:
+            return index
+    return 0
 
 
 def dead_ends(maze: Maze) -> int:

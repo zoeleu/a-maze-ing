@@ -8,7 +8,8 @@ from typing import Any
 import pytest
 
 import mazegen
-from mazegen import Config, Maze, TaintTransformer, WilsonsGenerator
+from mazegen import (BacktrackerGenerator, Config, Maze, TaintTransformer,
+                     WilsonsGenerator)
 from ui import AMazeIngApp, memory
 from tests.helpers import VALID_CONFIG, WriteConfig
 
@@ -71,6 +72,18 @@ def test_writes_the_output_file(monkeypatch: pytest.MonkeyPatch,
     config = write_config(text)
     run(monkeypatch, config)
     assert (tmp_path / "out.txt").read_text() == expected_output(config)
+
+
+def test_uses_the_configured_algorithm(monkeypatch: pytest.MonkeyPatch,
+                                       write_config: WriteConfig,
+                                       in_tmp: Path) -> None:
+    """With ALGORITHM=backtracker, the output file holds the backtracker's
+    maze, as the library builds it."""
+    config = write_config(VALID_CONFIG + "ALGORITHM=backtracker\n")
+    run(monkeypatch, config)
+    maze = Maze(Config(config))
+    BacktrackerGenerator().generate(maze)
+    assert (in_tmp / "maze.txt").read_text() == maze.get_output()
 
 
 def test_output_file_is_relative_to_the_working_directory(
@@ -180,6 +193,7 @@ def test_missing_config_is_reported(monkeypatch: pytest.MonkeyPatch,
     (("WIDTH=10", "WIDTH=0"), "WIDTH: Invalid value"),
     (("EXIT=9,7", "EXIT=0,0"), "EXIT: Invalid value"),
     (("SEED=42", "SEED=42\nnot a pair"), "line 9: Bad syntax"),
+    (("SEED=42", "SEED=42\nALGORITHM=prim"), "ALGORITHM: Invalid value"),
 ])
 def test_bad_config_names_the_problem(monkeypatch: pytest.MonkeyPatch,
                                       write_config: WriteConfig,

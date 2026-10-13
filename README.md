@@ -114,6 +114,7 @@ twice, the last one wins.
 | `OUTPUT_FILE` | yes      | file name      | `OUTPUT_FILE=maze.txt` | Where the maze is written        |
 | `PERFECT`     | yes      | `True`/`False` | `PERFECT=False`        | Perfect maze or Pac-Man board    |
 | `SEED`        | no       | any text       | `SEED=hello`           | Seed for reproducible mazes      |
+| `ALGORITHM`   | no       | `wilson`/`backtracker` | `ALGORITHM=backtracker` | Generation algorithm (default `wilson`) |
 
 The configuration is rejected, with a message pointing at the faulty line,
 when:
@@ -121,6 +122,7 @@ when:
 - a mandatory key is missing, or a line has no `=`;
 - a value has the wrong format (e.g. `WIDTH=abc`, `PERFECT=yes`);
 - `WIDTH` or `HEIGHT` is above 1500 (see below);
+- `ALGORITHM` is not `wilson` or `backtracker`;
 - `ENTRY` or `EXIT` is outside the maze, they are the same cell, or one of
   them falls on the "42" pattern.
 
@@ -232,7 +234,9 @@ In the replay screen: `Space` pauses or resumes, `+`/`-` change the speed,
 Both screens list the algorithms, the one in use marked with `▸`: clicking
 another rebuilds the maze with it, from the same seed, like `A`. The choice
 is shared, so the replay screen replays the algorithm picked on the main
-screen, and the other way round.
+screen, and the other way round. The interface starts with the algorithm
+the config's `ALGORITHM` names, Wilson's by default; without the interface,
+that is the one used.
 
 When the config is invalid, an error screen shows the file with the faulty
 line highlighted; fix the file and press `R` to reload it.

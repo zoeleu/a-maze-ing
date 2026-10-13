@@ -50,6 +50,38 @@ def test_empty_seed_is_kept_as_empty(write_config: WriteConfig) -> None:
     assert config.seed == ""
 
 
+def test_algorithm_defaults_to_wilson(valid_config: str) -> None:
+    """Without ALGORITHM, Wilson's algorithm is used."""
+    assert Config(valid_config).algorithm == "wilson"
+
+
+@pytest.mark.parametrize("name", ["wilson", "backtracker"])
+def test_algorithm(write_config: WriteConfig, name: str) -> None:
+    """ALGORITHM accepts the name of each algorithm."""
+    assert Config(write_config(with_line("ALGORITHM", name))).algorithm == \
+        name
+
+
+@pytest.mark.parametrize("name", ["prim", "Wilson", ""])
+def test_unknown_algorithm(write_config: WriteConfig, name: str) -> None:
+    """Any other name is rejected, with the names it may be."""
+    with pytest.raises(ValueError, match=f"`{name}` at key `ALGORITHM`: "
+                                         f"must be wilson or backtracker"):
+        Config(write_config(with_line("ALGORITHM", name)))
+
+
+def test_from_dict_without_the_optional_keys() -> None:
+    """Config.from_dict() may leave SEED and ALGORITHM out, like the file:
+    no seed, and Wilson's algorithm."""
+    config = Config.from_dict({
+        "WIDTH": 10, "HEIGHT": 8, "ENTRY": (0, 0), "EXIT": (9, 7),
+        "OUTPUT_FILE": "maze.txt", "PERFECT": True,
+    })
+    config.validate()
+    assert config.seed is None
+    assert config.algorithm == "wilson"
+
+
 @pytest.mark.parametrize(("text", "perfect"), [("True", True),
                                                ("False", False)])
 def test_perfect(write_config: WriteConfig, text: str,

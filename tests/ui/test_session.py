@@ -12,7 +12,8 @@ from mazegen import (BacktrackerGenerator, Config, Direction,
 from ui import session as session_module
 from ui.session import (ALGORITHMS, CLOSED, CellEvent, ConfigProblem,
                         Event, MazeRun, Replay, Session, WallChange,
-                        dead_ends, describe, load_config)
+                        algorithm_index, dead_ends, describe,
+                        load_config)
 from tests.helpers import VALID_CONFIG, MakeConfig, MakeMaze, WriteConfig
 
 Kind = MazeHistoryCallbackCell
@@ -326,6 +327,24 @@ class TestSession:
         run = session.current
         assert 0 < run.carved < len(run.history)
         assert run.dead_ends == 2  # the pockets inside the 2
+
+    def test_starts_with_the_configured_algorithm(
+            self, write_config: WriteConfig, in_tmp: Path) -> None:
+        """With ALGORITHM=backtracker, the first maze is the backtracker's,
+        and A still switches algorithm from there."""
+        session = Session(write_config(VALID_CONFIG +
+                                       "ALGORITHM=backtracker\n"))
+        assert session.algorithm == 1
+        assert session.current.algorithm == ALGORITHMS[1][0]
+        assert session.next_algorithm().algorithm == ALGORITHMS[0][0]
+
+    def test_algorithm_missing_from_the_list(
+            self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An algorithm the interface does not list falls back to the
+        first one."""
+        monkeypatch.setattr(session_module, "ALGORITHMS",
+                            [("only", WilsonsGenerator)])
+        assert algorithm_index("backtracker") == 0
 
     def test_does_not_change_the_config_seed(
             self, write_config: WriteConfig, in_tmp: Path) -> None:
