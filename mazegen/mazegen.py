@@ -35,8 +35,9 @@ class MazeGenResult(TypedDict):
 
 
 class MazeGen:
-    """Generates a maze with Wilson's algorithm, braids it into a Pac-Man
-    board unless it is perfect, and solves it.
+    """Generates a maze, with Wilson's algorithm unless another one is
+    given, braids it into a Pac-Man board unless it is perfect, and
+    solves it.
 
     Example:
         result = MazeGen(20, 15, (0, 0), (19, 14), seed="42").generate()
@@ -49,7 +50,9 @@ class MazeGen:
 
     def __init__(self, width: int, height: int,
                  entry: tuple[int, int], exit: tuple[int, int],
-                 perfect: bool = True, seed: str | None = None) -> None:
+                 perfect: bool = True, seed: str | None = None,
+                 algorithm: type[mazegen.Generator] = mazegen.WilsonsGenerator
+                 ) -> None:
         """Set up a maze of *width* x *height* cells, with every wall closed.
 
         Args:
@@ -61,6 +64,8 @@ class MazeGen:
                 a Pac-Man board with loops and no dead ends.
             seed: the same seed and parameters always give the same maze;
                 None picks a random one.
+            algorithm: the generator class that carves the maze, e.g.
+                BacktrackerGenerator for long corridors with few branches.
 
         Raises:
             ValueError: if the size is below 1, or the entry or exit is
@@ -79,7 +84,7 @@ class MazeGen:
         # reached would make the generator retry forever
         config.validate()
         self.maze = mazegen.Maze(config)
-        self.generator = mazegen.WilsonsGenerator()
+        self.generator = algorithm()
         if not perfect:
             self.transformer = mazegen.TaintTransformer()
         else:

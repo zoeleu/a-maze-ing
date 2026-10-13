@@ -38,24 +38,8 @@ class WilsonsGenerator(Generator):
         its MAYBE too, and its OPEN once the walk is carved into it.
         """
         random.seed(seed or None)
-        playable = [
-            (row, col)
-            for row, col, _ in maze
-            if not maze.in_logo((row, col))
-        ]
-        if not playable:
-            raise mazegen.GeneratorError(
-                "No playable cells to generate a maze")
-
-        neighbours: dict[mazegen.Cell, list[mazegen.Cell]] = {}
-        for cell in playable:
-            neighbours[cell] = []
-            for side in mazegen.Direction:
-                other = maze.neighbour(cell, side)
-                if other is None:
-                    continue
-                if other in maze and not maze.in_logo(other):
-                    neighbours[cell].append(other)
+        neighbours = self._neighbours(maze)
+        playable = list(neighbours)
 
         first = random.choice(playable)
         in_tree = {first}

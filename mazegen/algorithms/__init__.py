@@ -18,6 +18,7 @@
 from .algorithms import (Generator, GeneratorError, MazeHistoryCallbackCell,
                          history_callback)
 from .wilsons import WilsonsGenerator
+from .backtracker import BacktrackerGenerator
 
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "MazeHistoryCallbackCell",
     "history_callback",
     "WilsonsGenerator",
+    "BacktrackerGenerator",
 ]

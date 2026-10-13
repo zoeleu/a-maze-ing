@@ -93,6 +93,31 @@ class Generator(ABC):
         for callback in self._history_callback:
             callback(cell, kind)
 
+    @staticmethod
+    def _neighbours(
+            maze: mazegen.Maze) -> dict[mazegen.Cell, list[mazegen.Cell]]:
+        """Every playable cell of *maze*, the ones outside the 42 logo, in
+        row order, with its playable neighbours in Direction order.
+
+        Raises GeneratorError if there is no playable cell.
+        """
+        neighbours: dict[mazegen.Cell, list[mazegen.Cell]] = {}
+        for row, col, _ in maze:
+            cell = (row, col)
+            if maze.in_logo(cell):
+                continue
+            neighbours[cell] = []
+            for side in mazegen.Direction:
+                other = maze.neighbour(cell, side)
+                if other is None:
+                    continue
+                if other in maze and not maze.in_logo(other):
+                    neighbours[cell].append(other)
+        if not neighbours:
+            raise mazegen.GeneratorError(
+                "No playable cells to generate a maze")
+        return neighbours
+
     @abstractmethod
     def _generate(self, maze: mazegen.Maze, seed: str | None) -> None:
         """Carve a maze into *maze*, which starts with every wall closed,

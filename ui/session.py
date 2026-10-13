@@ -28,8 +28,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
 
-from mazegen import (Cell, Config, Direction, Generator, GeneratorError,
-                     Maze, MazeHistoryCallbackCell, TaintTransformer,
+from mazegen import (BacktrackerGenerator, Cell, Config, Direction,
+                     Generator, GeneratorError, Maze,
+                     MazeHistoryCallbackCell, TaintTransformer,
                      WilsonsGenerator)
 
 CLOSED = Direction.NORTH | Direction.EAST | Direction.SOUTH | Direction.WEST
@@ -37,6 +38,7 @@ CLOSED = Direction.NORTH | Direction.EAST | Direction.SOUTH | Direction.WEST
 # The generators the UI can pick from, with the name it shows for each.
 ALGORITHMS: list[tuple[str, type[Generator]]] = [
     ("wilson's (loop-erased walk)", WilsonsGenerator),
+    ("backtracker (depth-first search)", BacktrackerGenerator),
 ]
 
 # What each key expects, to explain a value the config parser rejected.

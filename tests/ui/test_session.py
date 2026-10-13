@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from mazegen import (Config, Direction, GeneratorError, Maze,
-                     MazeHistoryCallbackCell, TaintTransformer,
-                     WilsonsGenerator)
+from mazegen import (BacktrackerGenerator, Config, Direction,
+                     GeneratorError, Maze, MazeHistoryCallbackCell,
+                     TaintTransformer, WilsonsGenerator)
 from ui import session as session_module
 from ui.session import (ALGORITHMS, CLOSED, CellEvent, ConfigProblem,
                         Event, MazeRun, Replay, Session, WallChange,
@@ -355,13 +355,44 @@ class TestSession:
         assert session.config.perfect is True
         assert again.maze.grid == perfect.maze.grid
 
-    def test_next_algorithm_with_one_algorithm(self,
-                                               session: Session) -> None:
+    def test_next_algorithm_with_one_algorithm(
+            self, session: Session,
+            monkeypatch: pytest.MonkeyPatch) -> None:
         """With one algorithm, next_algorithm() rebuilds with the same one."""
+        monkeypatch.setattr(session_module, "ALGORITHMS",
+                            [("only", WilsonsGenerator)])
         run = session.next_algorithm()
         assert session.algorithm == 0
         assert run is session.current
         assert session.seed == "42"
+
+    def test_switches_to_the_backtracker(self, session: Session) -> None:
+        """The second algorithm is the backtracker: it rebuilds the maze
+        from the same seed, differently, and records its own history."""
+        wilsons = session.current
+        run = session.next_algorithm()
+        assert ALGORITHMS[1][1] is BacktrackerGenerator
+        assert run.algorithm == "backtracker (depth-first search)"
+        assert session.seed == "42"
+        assert run.maze.grid != wilsons.maze.grid
+        assert run.maze.solve()
+        kinds = {event.kind for event in run.history
+                 if isinstance(event, CellEvent)}
+        assert kinds == {MazeHistoryCallbackCell.MAYBE,
+                         MazeHistoryCallbackCell.OPEN}
+
+    def test_replays_the_backtracker(self, session: Session) -> None:
+        """A replay of the backtracker ends on its maze, with an empty
+        path, after showing a path that grows and shrinks."""
+        run = session.next_algorithm()
+        replay = Replay(run)
+        longest = 0
+        while not replay.done:
+            replay.advance(1)
+            longest = max(longest, len(replay.walk))
+        assert replay.maze.grid == run.maze.grid
+        assert replay.walk == []
+        assert longest > 1
 
     def test_next_algorithm_cycles(self, session: Session,
                                    monkeypatch: pytest.MonkeyPatch) -> None:

@@ -26,6 +26,7 @@ pytestmark = pytest.mark.ui
 
 TWO_ALGORITHMS = [("first (walk)", WilsonsGenerator),
                   ("second (walk)", WilsonsGenerator)]
+ONE_ALGORITHM = [("only (walk)", WilsonsGenerator)]
 
 
 def sized(write_config: WriteConfig, width: int, height: int,
@@ -428,8 +429,9 @@ class TestGeneratorScreen:
             """Pause, then check each side panel."""
             screen = await self.open(pilot)
             await pilot.press("space")
-            assert text_of(pilot, "#algorithms") == \
-                "▸ wilson's (loop-erased walk)"
+            assert text_of(pilot, "#algorithms").split("\n") == [
+                "▸ wilson's (loop-erased walk)",
+                "  backtracker (depth-first search)"]
             progress = text_of(pilot, "#progress")
             assert "phase" in progress and "carving" in progress
             assert f"/ {screen.replay.playable}" in progress
@@ -438,9 +440,13 @@ class TestGeneratorScreen:
                 assert label in legend
         drive(valid_config, scenario)
 
-    def test_one_algorithm_cannot_be_switched(self, drive: Drive,
-                                              valid_config: str) -> None:
+    def test_one_algorithm_cannot_be_switched(
+            self, drive: Drive, valid_config: str,
+            monkeypatch: pytest.MonkeyPatch) -> None:
         """With a single algorithm, A is not offered."""
+        monkeypatch.setattr(session_module, "ALGORITHMS", ONE_ALGORITHM)
+        monkeypatch.setattr(generator_module, "ALGORITHMS", ONE_ALGORITHM)
+
         async def scenario(pilot: Pilot[None]) -> None:
             """Check the algorithm key is not offered."""
             await self.open(pilot)

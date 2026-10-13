@@ -210,7 +210,9 @@ a timer (see `ui/mlx_window.py`).
 ## How the maze is generated
 
 Generation happens in two steps: a **generator** builds a perfect maze, then,
-in Pac-Man mode, a **transformer** reworks it into a board with loops.
+in Pac-Man mode, a **transformer** reworks it into a board with loops. There
+are two generators: Wilson's algorithm, the default, and the recursive
+backtracker.
 
 ### Wilson's algorithm (`mazegen/algorithms/wilsons.py`)
 
@@ -244,6 +246,31 @@ seed derived from the previous one, so the result stays reproducible.
 Its drawback is speed: the first walks are long, since they wander until they
 find the few cells already in the maze. In practice a 32×32 maze, braiding
 included, is built in under a tenth of a second.
+
+### Recursive backtracker (`mazegen/algorithms/backtracker.py`)
+
+A randomised depth-first search, the second algorithm to choose from:
+
+1. A random cell starts the path.
+2. From the cell at the end of the path, a random neighbour that has not
+   been visited yet is carved into and added to the path.
+3. When the end of the path has no unvisited neighbour left, the search
+   backs up one cell.
+4. Steps 2 and 3 repeat until the search has backed up past its first cell.
+
+Like Wilson's, it leaves out the "42" cells and builds a spanning tree, so a
+perfect maze. The path is kept in a list rather than in recursive calls, so
+large mazes do not hit Python's recursion limit.
+
+Its mazes look very different: the search goes as deep as it can before
+turning back, which gives long winding corridors with few branches. A 30×20
+maze has about 55 to 75 dead ends, against 150 to 185 with Wilson's, and the
+path from entry to exit is longer. It is also much faster, since every cell
+is visited exactly once.
+
+To use it, press `A` in the replay screen (`G`): the maze is rebuilt from
+the same seed, and the main screen keeps the chosen algorithm. In code, pass
+it to `MazeGen` (see [Reusable code](#reusable-code)).
 
 ### Braiding into a Pac-Man board (`mazegen/transformers/taint.py`)
 
@@ -308,14 +335,15 @@ path = result["solution"]                  # [Direction.EAST, ...]
 result["fully_braided"]                    # True (None for a perfect maze)
 ```
 
-| Parameter | Default | Meaning                                              |
-|-----------|---------|------------------------------------------------------|
-| `width`   |         | Number of columns, at least 1                        |
-| `height`  |         | Number of rows, at least 1                           |
-| `entry`   |         | Entry cell, `(x, y)`                                 |
-| `exit`    |         | Exit cell, `(x, y)`, a different cell from `entry`   |
-| `perfect` | `True`  | Perfect maze, or Pac-Man board when `False`          |
-| `seed`    | `None`  | Same seed, same maze; `None` picks a random one      |
+| Parameter   | Default            | Meaning                                            |
+|-------------|--------------------|----------------------------------------------------|
+| `width`     |                    | Number of columns, at least 1                      |
+| `height`    |                    | Number of rows, at least 1                         |
+| `entry`     |                    | Entry cell, `(x, y)`                               |
+| `exit`      |                    | Exit cell, `(x, y)`, a different cell from `entry` |
+| `perfect`   | `True`             | Perfect maze, or Pac-Man board when `False`        |
+| `seed`      | `None`             | Same seed, same maze; `None` picks a random one    |
+| `algorithm` | `WilsonsGenerator` | The generator class, e.g. `BacktrackerGenerator`   |
 
 `MazeGen` raises a `ValueError` when the size is below 1, or when the entry
 or exit is outside the maze, on the "42" pattern, or the same cell. The
@@ -364,14 +392,16 @@ Note that `Config` uses `(x, y)` coordinates, like the config file, while
 
 Main pieces:
 
-| Name                              | Role                                              |
-|-----------------------------------|---------------------------------------------------|
-| `MazeGen`, `MazeGenResult`        | The whole generator, and what it returns          |
-| `Config`                          | Reads and checks a config file, or wraps a dict   |
-| `Maze`                            | The grid of walls, solving and output             |
-| `Direction`                       | Wall flags (`NORTH`, `EAST`, `SOUTH`, `WEST`)     |
-| `Generator`, `WilsonsGenerator`   | Generator base class and Wilson's algorithm       |
-| `MazeTransformer`, `TaintTransformer` | Transformer base class and braiding          |
+| Name                                  | Role                                            |
+|---------------------------------------|-------------------------------------------------|
+| `MazeGen`, `MazeGenResult`            | The whole generator, and what it returns        |
+| `Config`                              | Reads and checks a config file, or wraps a dict |
+| `Maze`                                | The grid of walls, solving and output           |
+| `Direction`                           | Wall flags (`NORTH`, `EAST`, `SOUTH`, `WEST`)   |
+| `Generator`                           | Generator base class                            |
+| `WilsonsGenerator`                    | Wilson's algorithm                              |
+| `BacktrackerGenerator`                | The recursive backtracker                       |
+| `MazeTransformer`, `TaintTransformer` | Transformer base class and braiding             |
 
 New algorithms subclass `Generator` and implement `_generate(maze, seed)`;
 new post-processing steps subclass `MazeTransformer`.
