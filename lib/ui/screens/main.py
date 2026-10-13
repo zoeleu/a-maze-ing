@@ -18,7 +18,7 @@
 """The screen that shows the maze and lets the user play with it."""
 from rich.table import Table
 from rich.text import Text
-from textual.app import ComposeResult
+from textual.app import ComposeResult, App
 from textual.binding import Binding
 from textual.containers import Center, ScrollableContainer, Vertical
 from textual.screen import Screen
@@ -57,6 +57,7 @@ def badge(run: MazeRun) -> tuple[str, str]:
 
 class MainScreen(Screen[None]):
     """The maze, its config and numbers, and the keys to change it."""
+    app: App[None]
 
     BINDINGS = [
         Binding("r", "regenerate", "Regenerate", key_display="R"),
