@@ -24,6 +24,7 @@ class MakeConfig(Protocol):
                  output_file: str = ..., perfect: bool = ...,
                  seed: str | None = ...) -> Config:
         """Build a Config from keyword values, without checking them."""
+        ...  # stub: signature only, so VS Code doesn't expect a return
 
 
 class MakeMaze(Protocol):
@@ -35,6 +36,7 @@ class MakeMaze(Protocol):
                  output_file: str = ..., perfect: bool = ...,
                  seed: str | None = ...) -> Maze:
         """Build a Maze with every wall closed."""
+        ...
 
 
 class WriteConfig(Protocol):
@@ -42,3 +44,4 @@ class WriteConfig(Protocol):
 
     def __call__(self, text: str, name: str = ...) -> str:
         """Write *text* to a config file and return its path."""
+        ...

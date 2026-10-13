@@ -72,6 +72,7 @@ class Drive(Protocol):
     def __call__(self, config_path: str, scenario: Scenario,
                  size: tuple[int, int] = ...) -> AMazeIngApp:
         """Run the app on *config_path*, play *scenario* and return the app."""
+        ...
 
 
 def plain(widget: Widget) -> str:

@@ -27,7 +27,7 @@ replaces it offers to show the maze in an MLX window instead (see
 lib/ui/mlx_window.py), and says how that window is doing.
 """
 from rich.text import Text
-from textual.app import ComposeResult
+from textual.app import ComposeResult, App
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
@@ -110,6 +110,7 @@ class MazeBody(Horizontal):
     When even the compact maze is more than TOO_NARROW times the terminal's
     width, a TooNarrowNotice replaces it, which offers the MLX window.
     """
+    app: App[None]
 
     class Changed(Message):
         """Posted when the body was laid out again or removed, so the app
