@@ -26,8 +26,10 @@ When the terminal is too narrow to draw the maze at all, the notice that
 replaces it offers to show the maze in an MLX window instead (see
 ui/mlx_window.py), and says how that window is doing.
 """
+from typing import TYPE_CHECKING
+
 from rich.text import Text
-from textual.app import ComposeResult, App
+from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
@@ -36,6 +38,10 @@ from textual.widgets import Button, Static
 
 from ..mlx_window import WindowState
 from ..renderer import AMazeIngRenderer, drawing_width
+
+if TYPE_CHECKING:
+    # only for the type checker: the app imports this module
+    from ..app import AMazeIngApp
 
 # Sizes from the stylesheet, in terminal cells
 PANEL_FRAME_WIDTH = 4  # #maze-panel's border and padding, left and right
@@ -110,7 +116,7 @@ class MazeBody(Horizontal):
     When even the compact maze is more than TOO_NARROW times the terminal's
     width, a TooNarrowNotice replaces it, which offers the MLX window.
     """
-    app: App[None]
+    app: "AMazeIngApp"
 
     class Changed(Message):
         """Posted when the body was laid out again or removed, so the app

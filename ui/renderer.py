@@ -18,11 +18,10 @@
 """The widget that draws a maze, and the colours it can draw it in."""
 from enum import Enum, auto
 from itertools import groupby
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from rich.style import Style
 from rich.text import Text
-from textual.app import App
 from textual.color import Color
 from textual.message import Message
 from textual.reactive import reactive
@@ -31,6 +30,10 @@ from textual.widget import Widget
 from mazegen import Cell, Direction, Maze
 from .mlx_window import Frame
 from .session import CLOSED
+
+if TYPE_CHECKING:
+    # only for the type checker: the app imports this module
+    from .app import AMazeIngApp
 
 
 class Swatch(NamedTuple):
@@ -92,7 +95,7 @@ class AMazeIngRenderer(Widget):
     For replays it can also dim the cells no passage reaches yet and
     highlight the trail being carved.
     """
-    app: App[None]
+    app: "AMazeIngApp"
 
     class Changed(Message):
         """Posted when what the renderer draws changed, so a copy of the
