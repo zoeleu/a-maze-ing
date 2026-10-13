@@ -22,6 +22,7 @@ from typing import NamedTuple
 
 from rich.style import Style
 from rich.text import Text
+from textual.app import App
 from textual.color import Color
 from textual.message import Message
 from textual.reactive import reactive
@@ -91,6 +92,7 @@ class AMazeIngRenderer(Widget):
     For replays it can also dim the cells no passage reaches yet and
     highlight the trail being carved.
     """
+    app: App[None]
 
     class Changed(Message):
         """Posted when what the renderer draws changed, so a copy of the
