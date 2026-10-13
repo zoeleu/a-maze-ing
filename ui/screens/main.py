@@ -25,7 +25,8 @@ from textual.screen import Screen
 from textual.widgets import Footer, Static
 
 from ..renderer import LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer
-from ..session import ConfigProblem, MazeRun, Session
+from ..session import ALGORITHMS, ConfigProblem, MazeRun, Session
+from .algorithms import AlgorithmPicker
 from .error import ProblemFound
 from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
                      zoom_allowed)
@@ -67,6 +68,7 @@ class MainScreen(Screen[None]):
         Binding("c", "wall_colour", "Wall colour", key_display="C"),
         Binding("f", "logo_colour", "42 colour", key_display="F"),
         Binding("m", "toggle_mode", "Perfect / Pac-Man", key_display="M"),
+        Binding("a", "algorithm", "Algorithm", key_display="A"),
         *ZOOM_BINDINGS,
         Binding("g", "animate", "Animate", key_display="G"),
     ]
@@ -87,6 +89,7 @@ class MainScreen(Screen[None]):
                 with ScrollableContainer(id="maze-panel"):
                     yield AMazeIngRenderer()
             with Vertical(id="side"):
+                yield AlgorithmPicker(self.session.algorithm)
                 yield Static(id="config", classes="panel")
                 yield Static(id="stats", classes="panel")
                 yield Static(id="note", classes="note")
@@ -103,10 +106,12 @@ class MainScreen(Screen[None]):
 
     def check_action(self, action: str,
                      parameters: tuple[object, ...]) -> bool | None:
-        """Offer only the path and zoom keys that apply."""
+        """Offer only the path, zoom and algorithm keys that apply."""
         zoom = zoom_allowed(self, action)
         if zoom is not None:
             return zoom
+        if action == "algorithm":
+            return len(ALGORITHMS) > 1
         showing = self.query_one(AMazeIngRenderer).show_path
         if action == "hide_path":
             return showing
@@ -129,6 +134,7 @@ class MainScreen(Screen[None]):
         self.query_one(TitleBar).show(
             *badge(run), dims=f"{config.width}×{config.height}",
             seed=session.seed)
+        self.query_one(AlgorithmPicker).select(session.algorithm)
 
         warning = self.query_one("#warning", Static)
         warning.display = not run.maze.has_logo
@@ -231,6 +237,26 @@ class MainScreen(Screen[None]):
     def action_shrink(self) -> None:
         """Draw the maze compact again, so it fits."""
         self.session.expanded = False
+        self._change()
+
+    def action_algorithm(self) -> None:
+        """Rebuild the maze, from the same seed, with the next generator."""
+        self._switch_algorithm((self.session.algorithm + 1) % len(ALGORITHMS))
+
+    def on_algorithm_picker_chosen(self,
+                                   message: AlgorithmPicker.Chosen) -> None:
+        """Rebuild the maze, from the same seed, with the clicked
+        generator."""
+        self._switch_algorithm(message.index)
+
+    def _switch_algorithm(self, index: int) -> None:
+        """Rebuild the maze with ALGORITHMS[*index*], or show what is wrong
+        if that fails."""
+        try:
+            self.session.set_algorithm(index)
+        except ConfigProblem as problem:
+            self.post_message(ProblemFound(problem))
+            return
         self._change()
 
     def action_animate(self) -> None:

@@ -394,6 +394,28 @@ class TestSession:
         assert replay.walk == []
         assert longest > 1
 
+    def test_set_algorithm(self, session: Session) -> None:
+        """set_algorithm() rebuilds from the same seed with the given
+        algorithm, and back."""
+        wilsons = session.current
+        run = session.set_algorithm(1)
+        assert session.algorithm == 1
+        assert run is session.current
+        assert run.algorithm == ALGORITHMS[1][0]
+        assert session.seed == "42"
+        assert session.set_algorithm(0).maze.grid == wilsons.maze.grid
+
+    @pytest.mark.parametrize("index", [-1, 2])
+    def test_set_algorithm_out_of_range(self, session: Session,
+                                        index: int) -> None:
+        """An index with no algorithm raises IndexError and changes
+        nothing."""
+        run = session.current
+        with pytest.raises(IndexError):
+            session.set_algorithm(index)
+        assert session.algorithm == 0
+        assert session.current is run
+
     def test_next_algorithm_cycles(self, session: Session,
                                    monkeypatch: pytest.MonkeyPatch) -> None:
         """next_algorithm() goes through each algorithm, then back."""

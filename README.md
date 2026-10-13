@@ -177,8 +177,9 @@ python3 maze_analyzer.py maze.txt
 ## The interface
 
 The maze is shown in the terminal with [Textual](https://textual.textualize.io/),
-next to panels with the config (including the seed in use) and statistics
-(mode, shortest path length, dead ends, build time). Keys:
+next to panels with the generation algorithms, the config (including the
+seed in use) and statistics (mode, shortest path length, dead ends, build
+time). Keys:
 
 | Key | Action                                                           |
 |-----|------------------------------------------------------------------|
@@ -187,6 +188,7 @@ next to panels with the config (including the seed in use) and statistics
 | `C` | Cycle the wall colour (chalk, amber, moss, cyan, rose, steel)    |
 | `F` | Cycle the colour of the "42" pattern                             |
 | `M` | Switch between perfect and Pac-Man mode, keeping the seed        |
+| `A` | Cycle the generation algorithm, keeping the seed                 |
 | `G` | Watch an animated replay of how the maze was built               |
 | `Z` | Expand / shrink the maze when it does not fit the terminal       |
 | `W` | Open the maze in an MLX window, when the terminal is too narrow  |
@@ -194,6 +196,11 @@ next to panels with the config (including the seed in use) and statistics
 
 In the replay screen: `Space` pauses or resumes, `+`/`-` change the speed,
 `S` skips to the end, `R` restarts, `A` switches algorithm, `Esc` goes back.
+
+Both screens list the algorithms, the one in use marked with `▸`: clicking
+another rebuilds the maze with it, from the same seed, like `A`. The choice
+is shared, so the replay screen replays the algorithm picked on the main
+screen, and the other way round.
 
 When the config is invalid, an error screen shows the file with the faulty
 line highlighted; fix the file and press `R` to reload it.
@@ -268,9 +275,9 @@ maze has about 55 to 75 dead ends, against 150 to 185 with Wilson's, and the
 path from entry to exit is longer. It is also much faster, since every cell
 is visited exactly once.
 
-To use it, press `A` in the replay screen (`G`): the maze is rebuilt from
-the same seed, and the main screen keeps the chosen algorithm. In code, pass
-it to `MazeGen` (see [Reusable code](#reusable-code)).
+To use it, click it in the algorithm list, or press `A`, on the main or the
+replay screen: the maze is rebuilt from the same seed. In code, pass it to
+`MazeGen` (see [Reusable code](#reusable-code)).
 
 ### Braiding into a Pac-Man board (`mazegen/transformers/taint.py`)
 

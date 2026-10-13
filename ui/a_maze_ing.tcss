@@ -224,3 +224,8 @@ Footer {
         }
     }
 }
+
+/* The algorithm list can be clicked: show it on hover */
+#algorithms:hover {
+    border: solid $muted;
+}

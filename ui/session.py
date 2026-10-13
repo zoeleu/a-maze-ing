@@ -281,7 +281,16 @@ class Session:
 
     def next_algorithm(self) -> MazeRun:
         """Rebuild the maze with the next generator, keeping the seed."""
-        self.algorithm = (self.algorithm + 1) % len(ALGORITHMS)
+        return self.set_algorithm((self.algorithm + 1) % len(ALGORITHMS))
+
+    def set_algorithm(self, index: int) -> MazeRun:
+        """Rebuild the maze with ALGORITHMS[*index*], keeping the seed.
+
+        Raises IndexError if there is no algorithm at *index*.
+        """
+        if not 0 <= index < len(ALGORITHMS):
+            raise IndexError(f"no algorithm number {index}")
+        self.algorithm = index
         self.current = self._build()
         return self.current
 

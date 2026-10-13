@@ -28,6 +28,7 @@ from textual.widgets import Footer, Static
 from ..renderer import (CYAN, GOLD, GROUND, LOGO_COLOURS, UNTOUCHED,
                         WALL_COLOURS, AMazeIngRenderer)
 from ..session import ALGORITHMS, ConfigProblem, Replay, Session
+from .algorithms import AlgorithmPicker
 from .error import ProblemFound
 from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
                      zoom_allowed)
@@ -76,7 +77,7 @@ class GeneratorScreen(Screen[None]):
                 with ScrollableContainer(id="maze-panel"):
                     yield AMazeIngRenderer(dim_untouched=True)
             with Vertical(id="side"):
-                yield Static(id="algorithms", classes="panel")
+                yield AlgorithmPicker(self.session.algorithm)
                 yield Static(id="progress", classes="panel")
                 yield Static(self._legend(), id="legend", classes="panel")
         yield Static(id="status")
@@ -141,12 +142,7 @@ class GeneratorScreen(Screen[None]):
             status, tone="cyan", dims=f"{config.width}×{config.height}",
             seed=self.session.seed)
 
-        # show selected algorithm in gold, and the others in muted colour
-        self.query_one("#algorithms", Static).update(Text("\n").join(
-            Text(f"▸ {name}" if index == self.session.algorithm
-                 else f"  {name}",
-                 GOLD.hex if index == self.session.algorithm else MUTED)
-            for index, (name, _) in enumerate(ALGORITHMS)))
+        self.query_one(AlgorithmPicker).select(self.session.algorithm)
 
         progress = Table.grid(expand=True)
         progress.add_column(style=MUTED)
@@ -227,8 +223,18 @@ class GeneratorScreen(Screen[None]):
 
     def action_algorithm(self) -> None:
         """Rebuild the maze with the next generator and replay it."""
+        self._switch_algorithm((self.session.algorithm + 1) % len(ALGORITHMS))
+
+    def on_algorithm_picker_chosen(self,
+                                   message: AlgorithmPicker.Chosen) -> None:
+        """Rebuild the maze with the clicked generator and replay it."""
+        self._switch_algorithm(message.index)
+
+    def _switch_algorithm(self, index: int) -> None:
+        """Rebuild the maze with ALGORITHMS[*index*] and replay it, or show
+        what is wrong if that fails."""
         try:
-            self.session.next_algorithm()
+            self.session.set_algorithm(index)
         except ConfigProblem as problem:
             self.post_message(ProblemFound(problem))
             return

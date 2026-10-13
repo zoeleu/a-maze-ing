@@ -18,6 +18,7 @@ from ui.renderer import (LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer,
 from ui.screens import (ErrorScreen, GeneratorScreen, MainScreen,
                         MazeBody, ProblemFound, badge, readout)
 from ui.screens import generator as generator_module
+from ui.screens import main as main_module
 from ui.session import ConfigProblem, MazeRun, Session
 from tests.helpers import VALID_CONFIG, WriteConfig
 from tests.ui.helpers import Drive, fake_window, plain, state_of
@@ -476,11 +477,11 @@ class TestGeneratorScreen:
         """A problem while switching algorithm shows the error screen."""
         monkeypatch.setattr(generator_module, "ALGORITHMS", TWO_ALGORITHMS)
 
-        def fail(self: Session) -> MazeRun:
-            """Stand-in for Session.next_algorithm: always fails."""
+        def fail(self: Session, index: int) -> MazeRun:
+            """Stand-in for Session.set_algorithm: always fails."""
             raise ConfigProblem("Impossible maze", "no room",
                                 self.config_path)
-        monkeypatch.setattr(Session, "next_algorithm", fail)
+        monkeypatch.setattr(Session, "set_algorithm", fail)
 
         async def scenario(pilot: Pilot[None]) -> None:
             """Press A and check the error screen shows."""
@@ -766,3 +767,153 @@ class TestMlxWindow:
             assert isinstance(pilot.app.screen, ErrorScreen)
             assert window.state is WindowState.HIDDEN
         drive(sized(write_config, 40, 20), scenario, size=(50, 30))
+
+
+ALGORITHM_NAMES = ["wilson's (loop-erased walk)",
+                   "backtracker (depth-first search)"]
+
+
+async def click_algorithm(pilot: Pilot[None], line: int) -> None:
+    """Click *line* of the algorithm list, counting from its top border
+    (line 0); the first algorithm is on line 1."""
+    # x=3: past the border and the padding, on the name
+    assert await pilot.click("#algorithms", offset=(3, line))
+    await pilot.pause()
+
+
+def marked(pilot: Pilot[None]) -> list[str]:
+    """The algorithm list's lines, the selected one starting with ▸."""
+    return text_of(pilot, "#algorithms").split("\n")
+
+
+class TestAlgorithmPicker:
+    """Choosing the algorithm, by clicking the list or with A, on the main
+    and the replay screen."""
+
+    def test_main_screen_lists_the_algorithms(self, drive: Drive,
+                                              valid_config: str) -> None:
+        """The main screen lists every algorithm, the one in use marked."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check the list."""
+            main_screen(pilot)
+            assert marked(pilot) == [f"▸ {ALGORITHM_NAMES[0]}",
+                                     f"  {ALGORITHM_NAMES[1]}"]
+        drive(valid_config, scenario)
+
+    def test_a_cycles_on_the_main_screen(self, drive: Drive,
+                                         valid_config: str) -> None:
+        """A rebuilds the maze from the same seed with the next algorithm,
+        and back to the first after the last."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Press A twice, checking the maze, list and stats."""
+            screen = main_screen(pilot)
+            wilsons = screen.session.current
+            assert offered(pilot, "algorithm")
+            await pilot.press("a")
+            assert screen.session.algorithm == 1
+            assert screen.session.seed == "42"
+            assert screen.session.current.maze.grid != wilsons.maze.grid
+            assert marked(pilot)[1] == f"▸ {ALGORITHM_NAMES[1]}"
+            assert "backtracker" in text_of(pilot, "#stats")
+            renderer = screen.query_one(AMazeIngRenderer)
+            assert renderer.maze is screen.session.current.maze
+            await pilot.press("a")
+            assert screen.session.algorithm == 0
+            assert marked(pilot)[0] == f"▸ {ALGORITHM_NAMES[0]}"
+        drive(valid_config, scenario)
+
+    def test_click_switches_on_the_main_screen(self, drive: Drive,
+                                               valid_config: str) -> None:
+        """Clicking an algorithm rebuilds the maze with it."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Click the backtracker, then Wilson's again."""
+            screen = main_screen(pilot)
+            await click_algorithm(pilot, 2)
+            assert screen.session.algorithm == 1
+            assert marked(pilot)[1] == f"▸ {ALGORITHM_NAMES[1]}"
+            assert "backtracker" in text_of(pilot, "#stats")
+            await click_algorithm(pilot, 1)
+            assert screen.session.algorithm == 0
+            assert "wilson's" in text_of(pilot, "#stats")
+        drive(valid_config, scenario)
+
+    @pytest.mark.parametrize("line", [0, 1])
+    def test_clicks_that_change_nothing(self, drive: Drive,
+                                        valid_config: str, line: int) -> None:
+        """Clicking the border, or the algorithm already in use, keeps the
+        maze as it is."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Click and check the maze was not rebuilt."""
+            screen = main_screen(pilot)
+            run = screen.session.current
+            await click_algorithm(pilot, line)
+            assert screen.session.current is run
+            assert screen.session.algorithm == 0
+        drive(valid_config, scenario)
+
+    def test_one_algorithm_is_not_offered(
+            self, drive: Drive, valid_config: str,
+            monkeypatch: pytest.MonkeyPatch) -> None:
+        """With a single algorithm, the main screen does not offer A."""
+        monkeypatch.setattr(session_module, "ALGORITHMS", ONE_ALGORITHM)
+        monkeypatch.setattr(main_module, "ALGORITHMS", ONE_ALGORITHM)
+
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check A is not offered, and the list has one line."""
+            main_screen(pilot)
+            assert not offered(pilot, "algorithm")
+            assert marked(pilot) == ["▸ only (walk)"]
+        drive(valid_config, scenario)
+
+    def test_problem_on_the_main_screen(
+            self, drive: Drive, valid_config: str,
+            monkeypatch: pytest.MonkeyPatch) -> None:
+        """A problem while switching algorithm shows the error screen."""
+        def fail(self: Session, index: int) -> MazeRun:
+            """Stand-in for Session.set_algorithm: always fails."""
+            raise ConfigProblem("Impossible maze", "no room",
+                                self.config_path)
+        monkeypatch.setattr(Session, "set_algorithm", fail)
+
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Press A and check the error screen shows."""
+            await pilot.press("a")
+            await pilot.pause()
+            assert isinstance(pilot.app.screen, ErrorScreen)
+        drive(valid_config, scenario)
+
+    def test_click_switches_on_the_replay_screen(self, drive: Drive,
+                                                 valid_config: str) -> None:
+        """On the replay screen, clicking an algorithm rebuilds the maze
+        with it and replays the new one."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Skip the replay, click the backtracker, check it replays."""
+            await pilot.press("g")
+            await pilot.pause()
+            screen = generator_screen(pilot)
+            await pilot.press("s")
+            assert screen.replay.done
+            await click_algorithm(pilot, 2)
+            assert screen.session.algorithm == 1
+            assert not screen.replay.done
+            assert screen.replay.run is screen.session.current
+            assert marked(pilot)[1] == f"▸ {ALGORITHM_NAMES[1]}"
+        drive(valid_config, scenario)
+
+    def test_choice_carries_across_screens(self, drive: Drive,
+                                           valid_config: str) -> None:
+        """An algorithm picked on one screen is the one marked, and used, on
+        the other."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Pick on the main screen, check the replay screen, pick there,
+            and check the main screen again."""
+            await pilot.press("a", "g")
+            await pilot.pause()
+            assert marked(pilot)[1] == f"▸ {ALGORITHM_NAMES[1]}"
+            await click_algorithm(pilot, 1)
+            await pilot.press("escape")
+            await pilot.pause()
+            main_screen(pilot)
+            assert marked(pilot)[0] == f"▸ {ALGORITHM_NAMES[0]}"
+            assert "wilson's" in text_of(pilot, "#stats")
+        drive(valid_config, scenario)
