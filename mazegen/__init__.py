@@ -20,6 +20,7 @@ from .config import Config
 from .algorithms import (Generator, GeneratorError, MazeHistoryCallbackCell,
                          history_callback, WilsonsGenerator)
 from .transformers import MazeTransformer, TaintTransformer
+from .mazegen import MazeGen, MazeGenResult
 
 
 __all__ = [
@@ -36,5 +37,7 @@ __all__ = [
     "history_callback",
     "WilsonsGenerator",
     "MazeTransformer",
-    "TaintTransformer"
+    "TaintTransformer",
+    "MazeGen",
+    "MazeGenResult"
 ]

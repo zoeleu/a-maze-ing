@@ -269,6 +269,49 @@ pip install mazegen-1.0.0-py3-none-any.whl
 
 ### Usage
 
+`MazeGen` is the whole generator in one class:
+
+```python
+from mazegen import Direction, MazeGen
+
+# Size, entry and exit as (x, y), mode, and seed for reproducibility
+generator = MazeGen(width=20, height=15, entry=(0, 0), exit=(19, 14),
+                    perfect=False, seed="42")
+result = generator.generate()
+
+# The structure: the closed walls of every cell, as Direction flags,
+# indexed grid[y][x]
+grid = result["grid"]
+grid[0][0]                                 # Direction.NORTH|WEST
+grid[0][0].has(Direction.NORTH)            # True: the wall is closed
+
+# A solution: the shortest path from entry to exit
+path = result["solution"]                  # [Direction.EAST, ...]
+"".join(str(step) for step in path)        # "EESSSENEESES..."
+
+# Pac-Man mode only: whether every dead end could be removed
+result["fully_braided"]                    # True (None for a perfect maze)
+```
+
+| Parameter | Default | Meaning                                              |
+|-----------|---------|------------------------------------------------------|
+| `width`   |         | Number of columns, at least 1                        |
+| `height`  |         | Number of rows, at least 1                           |
+| `entry`   |         | Entry cell, `(x, y)`                                 |
+| `exit`    |         | Exit cell, `(x, y)`, a different cell from `entry`   |
+| `perfect` | `True`  | Perfect maze, or Pac-Man board when `False`          |
+| `seed`    | `None`  | Same seed, same maze; `None` picks a random one      |
+
+`MazeGen` raises a `ValueError` when the size is below 1, or when the entry
+or exit is outside the maze, on the "42" pattern, or the same cell. The
+returned grid is a copy: changing it does not change the generator's maze,
+which stays available as `generator.maze`.
+
+### Lower-level pieces
+
+`MazeGen` is built from smaller pieces, which can also be used directly, for
+example to read a config file or to get the output file format:
+
 ```python
 from mazegen import Config, Direction, Maze, TaintTransformer, WilsonsGenerator
 
@@ -279,6 +322,7 @@ config = Config.from_dict({
     "ENTRY": (0, 0), "EXIT": (19, 14),
     "OUTPUT_FILE": "maze.txt", "PERFECT": False, "SEED": "42",
 })
+config.validate()                          # from_dict() does not check
 
 maze = Maze(config)
 WilsonsGenerator().generate(maze)          # a perfect maze
@@ -307,6 +351,7 @@ Main pieces:
 
 | Name                              | Role                                              |
 |-----------------------------------|---------------------------------------------------|
+| `MazeGen`, `MazeGenResult`        | The whole generator, and what it returns          |
 | `Config`                          | Reads and checks a config file, or wraps a dict   |
 | `Maze`                            | The grid of walls, solving and output             |
 | `Direction`                       | Wall flags (`NORTH`, `EAST`, `SOUTH`, `WEST`)     |
@@ -363,8 +408,6 @@ also what made the replay animation possible.
 
 ### What could be improved
 
-- A single `MazeGenerator` class wrapping config, generation, braiding and
-  solving would make the reusable package simpler to use.
 - Automated tests should have been written earlier, alongside the code.
 
 ### Tools

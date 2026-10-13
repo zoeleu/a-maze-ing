@@ -119,6 +119,16 @@ class Config:
                                  `{key}`: in config file")
             setattr(self, key.lower(), parse_dict[key](kv[key]))
 
+        self.validate()
+
+    def validate(self) -> None:
+        """Checks that the values make a maze that can be built: a size of
+        at least 1, and an entry and exit that are different cells, inside
+        the maze and not on the 42 pattern. Raises a ValueError otherwise.
+
+        Config(path) calls it; call it yourself after Config.from_dict(),
+        which does not.
+        """
         # check bounds
         for key, size in (("WIDTH", self.width), ("HEIGHT", self.height)):
             if size < 1:
@@ -150,7 +160,8 @@ class Config:
 
     @classmethod
     def from_dict(cls, config_dict: ConfigDict) -> Self:
-        """Creates a Config object from a dictionary of key-value pairs."""
+        """Creates a Config object from a dictionary of key-value pairs,
+        without checking them: call validate() for that."""
         instance = cls.__new__(cls)
 
         for key, value in config_dict.items():
