@@ -68,8 +68,9 @@ class MazeGen:
                 BacktrackerGenerator for long corridors with few branches.
 
         Raises:
-            ValueError: if the size is below 1, or the entry or exit is
-                outside the maze, on the "42" pattern, or the same cell.
+            ValueError: if the size is below 1 or above MAX_SIZE (1500),
+                or the entry or exit is outside the maze, on the "42"
+                pattern, or the same cell.
         """
         config = mazegen.Config.from_dict({
             'WIDTH': width,

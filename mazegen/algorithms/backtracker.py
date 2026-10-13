@@ -39,6 +39,8 @@ class BacktrackerGenerator(Generator):
         Reports to the history callbacks: MAYBE when a cell is added to the
         path, and OPEN when the search backs up out of it for good, so the
         cells between a MAYBE and their OPEN are the current path.
+
+        Reports "carving" progress as the cells visited.
         """
         random.seed(seed or None)
         neighbours = self._neighbours(maze)
@@ -61,3 +63,4 @@ class BacktrackerGenerator(Generator):
             visited.add(other)
             path.append(other)
             self._emit(other, MazeHistoryCallbackCell.MAYBE)
+            self._report("carving", len(visited), len(neighbours))

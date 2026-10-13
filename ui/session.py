@@ -31,7 +31,7 @@ from typing import NamedTuple
 from mazegen import (BacktrackerGenerator, Cell, Config, Direction,
                      Generator, GeneratorError, Maze,
                      MazeHistoryCallbackCell, TaintTransformer,
-                     WilsonsGenerator)
+                     WilsonsGenerator, progress_callback)
 
 CLOSED = Direction.NORTH | Direction.EAST | Direction.SOUTH | Direction.WEST
 
@@ -40,6 +40,10 @@ ALGORITHMS: list[tuple[str, type[Generator]]] = [
     ("wilson's (loop-erased walk)", WilsonsGenerator),
     ("backtracker (depth-first search)", BacktrackerGenerator),
 ]
+
+# How many times a second, at most, the session passes progress on: the
+# library reports for every cell, and showing it costs far more than that
+REPORTS_PER_SECOND = 10
 
 # What each key expects, to explain a value the config parser rejected.
 _EXPECTED: dict[str, str] = {
@@ -254,7 +258,11 @@ class Session:
     wall_colour: int = 0
     logo_colour: int = 0
     expanded: bool = False  # full-size tiles even if the maze then scrolls
+    # told how far each build has got; called on the thread that builds
+    progress: progress_callback | None = None
     current: MazeRun = field(init=False)
+    # the step last passed on to progress, and when
+    _reported: tuple[str, float] = field(init=False, default=("", 0.0))
 
     # called after the dataclass generated __init__ method
     def __post_init__(self) -> None:
@@ -306,6 +314,7 @@ class Session:
         # register the maze's record() method as the generator's history
         # callback, so the maze can remember what the generator did to it
         generator.register_history_callback(maze.record)
+        generator.register_progress_callback(self._report)
         started = time.perf_counter()
         try:
             generator.generate(maze)
@@ -317,7 +326,9 @@ class Session:
         if not config.perfect:
             transformer = TaintTransformer()
             transformer.register_history_callback(maze.record)
+            transformer.register_progress_callback(self._report)
             braided = transformer.transform(maze)
+        self._report("solving", 0, 0)
         try:
             sides = maze.solve()
         except ValueError:
@@ -332,10 +343,31 @@ class Session:
             cell = (cell[0] + side.step[0], cell[1] + side.step[1])
             path.append(cell)
 
+        self._report("writing", 0, 0)
         return MazeRun(maze=maze, algorithm=name, history=maze.history,
                        carved=carved, path=path, dead_ends=dead_ends(maze),
                        braided=braided, elapsed=elapsed,
                        write_error=_write(maze))
+
+    def _report(self, step: str, done: int, total: int) -> None:
+        """Pass progress on to self.progress: every new step, but the same
+        step at most REPORTS_PER_SECOND times a second."""
+        if self.progress is None:
+            return
+        now = time.monotonic()
+        last_step, last_time = self._reported
+        if step == last_step and now - last_time < 1 / REPORTS_PER_SECOND:
+            return
+        self._reported = (step, now)
+        self.progress(step, done, total)
+
+
+def describe(step: str, done: int, total: int) -> str:
+    """Progress as a line of text, e.g. "carving 42% (105,000 / 250,000)",
+    or "solving..." for a step that cannot tell how far it has got."""
+    if total == 0:
+        return f"{step}..."
+    return f"{step} {done / total:.0%} ({done:,} / {total:,})"
 
 
 def dead_ends(maze: Maze) -> int:

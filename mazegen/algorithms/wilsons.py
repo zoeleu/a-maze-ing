@@ -20,6 +20,9 @@ import random
 import mazegen
 from .algorithms import Generator, MazeHistoryCallbackCell
 
+# Steps of a random walk between two progress reports
+WALK_REPORT = 10_000
+
 
 class WilsonsGenerator(Generator):
     """Wilson's algorithm: loop-erased random walks, which give every
@@ -36,6 +39,10 @@ class WilsonsGenerator(Generator):
         RESET when a loop of the walk is erased, and OPEN when a cell joins
         the maze. The walk ends on a cell already in the maze, which gets
         its MAYBE too, and its OPEN once the walk is carved into it.
+
+        Reports "carving" progress as the cells in the maze, after each
+        walk and every WALK_REPORT steps of a walk: the first walks of a
+        big maze wander for a long time before they hit the maze.
         """
         random.seed(seed or None)
         neighbours = self._neighbours(maze)
@@ -45,9 +52,11 @@ class WilsonsGenerator(Generator):
         in_tree = {first}
         self._emit(first, MazeHistoryCallbackCell.OPEN)
 
+        steps = 0
         for start in playable:
             if start in in_tree:
                 continue
+            self._report("carving", len(in_tree), len(playable))
 
             # Random walk until the tree is hit. When the walk steps back
             # onto itself, the loop it just made is erased.
@@ -55,6 +64,9 @@ class WilsonsGenerator(Generator):
             position = {start: 0}  # where each cell sits in the path
             self._emit(start, MazeHistoryCallbackCell.MAYBE)
             while path[-1] not in in_tree:
+                steps += 1
+                if steps % WALK_REPORT == 0:
+                    self._report("carving", len(in_tree), len(playable))
                 cell = random.choice(neighbours[path[-1]])
                 if cell in position:
                     # undo the loop from the head back to where it started
@@ -75,3 +87,4 @@ class WilsonsGenerator(Generator):
             # the cell the walk ended on was already in the maze, and now
             # has the walk's last passage opened onto it
             self._emit(path[-1], MazeHistoryCallbackCell.OPEN)
+        self._report("carving", len(in_tree), len(playable))

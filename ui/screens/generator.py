@@ -16,6 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """The screen that replays, step by step, how the maze was built."""
+from typing import TYPE_CHECKING
+
 from rich.table import Table
 from rich.text import Text
 from textual.app import ComposeResult
@@ -27,12 +29,15 @@ from textual.widgets import Footer, Static
 
 from ..renderer import (CYAN, GOLD, GROUND, LOGO_COLOURS, UNTOUCHED,
                         WALL_COLOURS, AMazeIngRenderer)
-from ..session import ALGORITHMS, ConfigProblem, Replay, Session
+from ..session import ALGORITHMS, Replay, Session
 from .algorithms import AlgorithmPicker
-from .error import ProblemFound
 from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
                      zoom_allowed)
 from .titlebar import TitleBar
+
+if TYPE_CHECKING:
+    # only for the type checker: the app imports this module
+    from ..app import AMazeIngApp
 
 MUTED = "#8A939C"
 FPS = 30
@@ -44,6 +49,7 @@ BAR_WIDTH = 40
 class GeneratorScreen(Screen[None]):
     """Replays the session's current maze, wall by wall, then shows the
     finished maze with its shortest path."""
+    app: "AMazeIngApp"
 
     BINDINGS = [
         Binding("space", "pause", "Pause", key_display="Space"),
@@ -231,14 +237,18 @@ class GeneratorScreen(Screen[None]):
         self._switch_algorithm(message.index)
 
     def _switch_algorithm(self, index: int) -> None:
-        """Rebuild the maze with ALGORITHMS[*index*] and replay it, or show
-        what is wrong if that fails."""
-        try:
-            self.session.set_algorithm(index)
-        except ConfigProblem as problem:
-            self.post_message(ProblemFound(problem))
-            return
-        self.action_replay()
+        """Rebuild the maze with ALGORITHMS[*index*], behind the progress
+        screen, and replay it."""
+        # app.build() runs build_maze on another thread, so the interface
+        # does not freeze while a big maze is built, then calls when_built
+        # with the new maze. build_maze is a lambda because build() calls it
+        # later, on that thread: calling set_algorithm(index) here would
+        # build the maze right away, on this one.
+        self.app.build(
+            build_maze=lambda: self.session.set_algorithm(index),
+            # this screen replays the maze being shown: start over with the
+            # new one, or it would keep replaying the old one
+            when_built=lambda run: self.action_replay())
 
     def action_expand(self) -> None:
         """Draw the maze full size, even though it then scrolls."""

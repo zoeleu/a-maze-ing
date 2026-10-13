@@ -18,6 +18,7 @@
 from .titlebar import TitleBar, TONES
 from .layout import MazeBody, ZOOM_BINDINGS, zoom_allowed
 from .error import ErrorScreen, ProblemFound
+from .building import BuildingScreen, progress_reporter
 from .generator import GeneratorScreen
 from .main import MainScreen, readout, badge
 
@@ -30,6 +31,8 @@ __all__ = [
     "zoom_allowed",
     "ErrorScreen",
     "ProblemFound",
+    "BuildingScreen",
+    "progress_reporter",
     "GeneratorScreen",
     "MainScreen",
     "readout",

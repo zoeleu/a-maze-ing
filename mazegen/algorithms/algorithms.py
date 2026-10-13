@@ -40,6 +40,11 @@ class MazeHistoryCallbackCell(Enum):
 # with the cell, and what the algorithm is thinking about
 history_callback = Callable[[mazegen.Cell, MazeHistoryCallbackCell], None]
 
+# the type definition for a callback told how far a long step has got:
+# called with the name of the step, how much of it is done, and out of
+# how much; a total of 0 means the step cannot tell how long it will take
+progress_callback = Callable[[str, int, int], None]
+
 
 class GeneratorError(Exception):
     """Raised when a generator cannot build a maze at all."""
@@ -50,11 +55,14 @@ class Generator(ABC):
     _generate(), and report what they do through _emit()."""
     # all the callbacks that need to be updated when a cell changes
     _history_callback: list[history_callback]
+    # all the callbacks told how far the generation has got
+    _progress_callback: list[progress_callback]
 
     def __init__(self) -> None:
-        """Create a generator with no history callback registered."""
+        """Create a generator with no callback registered."""
         super().__init__()
         self._history_callback = []
+        self._progress_callback = []
 
     def generate(self, maze: mazegen.Maze) -> None:
         """Generate a maze in place.
@@ -68,6 +76,7 @@ class Generator(ABC):
         while True:
             # generate the maze
             self._generate(maze, cur_seed)
+            self._report("checking the exit", 0, 0)
             try:
                 # if the maze is solvable, just exit the loop and return
                 maze.solve()
@@ -93,8 +102,20 @@ class Generator(ABC):
         for callback in self._history_callback:
             callback(cell, kind)
 
-    @staticmethod
+    def register_progress_callback(self, callback: progress_callback) -> None:
+        """Register a callback to be told how far the generation has got:
+        "mapping the cells" (rows done), "carving" (cells in the maze) and
+        "checking the exit" (no total)."""
+        self._progress_callback.append(callback)
+
+    def _report(self, step: str, done: int, total: int) -> None:
+        """Tell every registered progress callback that *done* out of
+        *total* of *step* is done. Generators call this from _generate()."""
+        for callback in self._progress_callback:
+            callback(step, done, total)
+
     def _neighbours(
+            self,
             maze: mazegen.Maze) -> dict[mazegen.Cell, list[mazegen.Cell]]:
         """Every playable cell of *maze*, the ones outside the 42 logo, in
         row order, with its playable neighbours in Direction order.
@@ -103,6 +124,8 @@ class Generator(ABC):
         """
         neighbours: dict[mazegen.Cell, list[mazegen.Cell]] = {}
         for row, col, _ in maze:
+            if col == 0:
+                self._report("mapping the cells", row, maze.rows)
             cell = (row, col)
             if maze.in_logo(cell):
                 continue

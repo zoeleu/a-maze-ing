@@ -2,6 +2,8 @@
 import re
 from pathlib import Path
 
+from types import SimpleNamespace
+
 import pytest
 
 from mazegen import (BacktrackerGenerator, Config, Direction,
@@ -10,7 +12,7 @@ from mazegen import (BacktrackerGenerator, Config, Direction,
 from ui import session as session_module
 from ui.session import (ALGORITHMS, CLOSED, CellEvent, ConfigProblem,
                         Event, MazeRun, Replay, Session, WallChange,
-                        dead_ends, load_config)
+                        dead_ends, describe, load_config)
 from tests.helpers import VALID_CONFIG, MakeConfig, MakeMaze, WriteConfig
 
 Kind = MazeHistoryCallbackCell
@@ -469,6 +471,53 @@ class TestSession:
         # breaks PyPy's os.urandom, which the new seed needs
         monkeypatch.setattr(session_module, "open", broken, raising=False)
         assert session.regenerate().write_error == "bad name"
+
+
+class TestProgress:
+    """How a session tells its progress callback how far a build has
+    got."""
+
+    @staticmethod
+    def build(write_config: WriteConfig) -> list[tuple[str, int, int]]:
+        """Build a braided maze and return what the progress callback was
+        told."""
+        reports: list[tuple[str, int, int]] = []
+        Session(write_config(config_with(PERFECT="False")),
+                progress=lambda step, done, total: reports.append(
+                    (step, done, total)))
+        return reports
+
+    def test_reports_every_step_in_order(self, write_config: WriteConfig,
+                                         in_tmp: Path) -> None:
+        """The callback hears every step of the build, in order."""
+        steps = [step for step, _, _ in self.build(write_config)]
+        assert list(dict.fromkeys(steps)) == [
+            "mapping the cells", "carving", "checking the exit", "braiding",
+            "solving", "writing"]
+
+    def test_same_step_is_throttled(self, write_config: WriteConfig,
+                                    in_tmp: Path,
+                                    monkeypatch: pytest.MonkeyPatch) -> None:
+        """With the clock stopped, each step gets through only once: the
+        same step waits a tenth of a second before it is passed on again."""
+        monkeypatch.setattr(session_module, "time", SimpleNamespace(
+            monotonic=lambda: 100.0, perf_counter=lambda: 0.0))
+        steps = [step for step, _, _ in self.build(write_config)]
+        assert steps == list(dict.fromkeys(steps))
+
+    def test_without_a_callback(self, session: Session) -> None:
+        """A session without a progress callback builds all the same."""
+        assert session.progress is None
+        assert session.regenerate() is session.current
+
+    @pytest.mark.parametrize(("report", "text"), [
+        (("carving", 105_000, 250_000), "carving 42% (105,000 / 250,000)"),
+        (("solving", 0, 0), "solving..."),
+    ])
+    def test_describe(self, report: tuple[str, int, int], text: str) -> None:
+        """Progress reads as the step, its share and its counts, or as the
+        step alone when it cannot tell how far it has got."""
+        assert describe(*report) == text
 
 
 class TestRecordingMaze:

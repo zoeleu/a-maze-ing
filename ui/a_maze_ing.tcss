@@ -229,3 +229,30 @@ Footer {
 #algorithms:hover {
     border: solid $muted;
 }
+
+/* Shown while a maze is built */
+BuildingScreen {
+    align: center middle;
+}
+
+#building-panel {
+    width: 50;
+    height: auto;
+    border: solid $edge;
+    background: $chrome;
+    padding: 1 2;
+
+    #building-title {
+        color: $gold;
+        text-style: bold;
+    }
+
+    #building-step {
+        color: $muted;
+        margin-bottom: 1;
+    }
+
+    ProgressBar Bar > .bar--bar, ProgressBar Bar > .bar--indeterminate {
+        color: $cyan;
+    }
+}

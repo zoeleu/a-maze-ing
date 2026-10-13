@@ -298,7 +298,6 @@ class Maze:
                 last_row = row
             # hex
             output += f"{directions:01x}"
-        # the config already gives (x, y), which is what the file expects
         output += "\n\n"
         output += f"{self.config.entry[0]},{self.config.entry[1]}"
         output += "\n"
@@ -317,7 +316,7 @@ class Maze:
         the step it was first reached by, then walks that trail back from
         the exit. The result is a shortest path.
         """
-        # the config gives (x, y), while cells are (row, col)
+        # the config gives (x, y), while cells are (row, col)/(y, x)
         start = (self.config.entry[1], self.config.entry[0])
         goal = (self.config.exit[1], self.config.exit[0])
 
@@ -342,6 +341,7 @@ class Maze:
         while cell != start:
             cell, side = came_from[cell]
             path.append(side)
+        # we added back to front, now we need to reverse the list
         path.reverse()
         return path
 

@@ -18,20 +18,23 @@
 import mazegen
 from abc import ABC, abstractmethod
 
-from mazegen.algorithms import MazeHistoryCallbackCell, history_callback
+from mazegen.algorithms import (MazeHistoryCallbackCell, history_callback,
+                                progress_callback)
 
 
 class MazeTransformer(ABC):
     """Base class of the transformations applied to a generated maze.
     Subclasses implement _transform(), and report what they do through
-    _emit()."""
+    _emit() and _report()."""
     # check mazegen/algorithms/algorithms.py, the architecture is similar
     _history_callback: list[history_callback]
+    _progress_callback: list[progress_callback]
 
     def __init__(self) -> None:
-        """Create a transformer with no history callback registered."""
+        """Create a transformer with no callback registered."""
         super().__init__()
         self._history_callback = []
+        self._progress_callback = []
 
     def transform(self, maze: mazegen.Maze) -> bool:
         """Transform the maze in place. Returns True if the transformer
@@ -48,6 +51,18 @@ class MazeTransformer(ABC):
         Transformers call this from _transform()."""
         for callback in self._history_callback:
             callback(cell, kind)
+
+    def register_progress_callback(self, callback: progress_callback) -> None:
+        """Register a callback to be told how far the transformation has
+        got."""
+        self._progress_callback.append(callback)
+
+    def _report(self, step: str, done: int, total: int) -> None:
+        """Tell every registered progress callback that *done* out of
+        *total* of *step* is done. Transformers call this from
+        _transform()."""
+        for callback in self._progress_callback:
+            callback(step, done, total)
 
     @abstractmethod
     def _transform(self, maze: mazegen.Maze, seed: str | None) -> bool:

@@ -18,8 +18,8 @@
 from .maze import Maze, Cell, Direction, in_logo, logo_center, logo_fits
 from .config import Config
 from .algorithms import (Generator, GeneratorError, MazeHistoryCallbackCell,
-                         history_callback, WilsonsGenerator,
-                         BacktrackerGenerator)
+                         history_callback, progress_callback,
+                         WilsonsGenerator, BacktrackerGenerator)
 from .transformers import MazeTransformer, TaintTransformer
 from .mazegen import MazeGen, MazeGenResult
 
@@ -36,6 +36,7 @@ __all__ = [
     "GeneratorError",
     "MazeHistoryCallbackCell",
     "history_callback",
+    "progress_callback",
     "WilsonsGenerator",
     "BacktrackerGenerator",
     "MazeTransformer",

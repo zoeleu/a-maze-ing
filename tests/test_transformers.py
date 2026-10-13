@@ -11,6 +11,7 @@ CLOSED = Direction(sum(Direction))
 N, E, S, W = Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
 Kind = MazeHistoryCallbackCell
 Events = list[tuple[Cell, MazeHistoryCallbackCell]]
+Reports = list[tuple[str, int, int]]  # what progress callbacks were told
 
 SIZES = [
     (8, 6, (7, 0), (7, 5)),
@@ -98,6 +99,17 @@ class TestMazeTransformer:
         first.register_history_callback(lambda c, k: None)
         assert second._history_callback == []
 
+    def test_progress_callbacks(self) -> None:
+        """Progress a transformer reports reaches the callbacks registered
+        on it, and only on it."""
+        reports: Reports = []
+        first, second = Recorder(), Recorder()
+        first.register_progress_callback(
+            lambda step, done, total: reports.append((step, done, total)))
+        first._report("step", 1, 2)
+        second._report("step", 3, 4)
+        assert reports == [("step", 1, 2)]
+
 
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize(("width", "height", "entry", "exit"), SIZES)
@@ -121,6 +133,21 @@ class TestTaintedMazes:
         # the two pockets inside the 2 are always among them
         row, col = maze.center_cell
         assert {(row - 1, col + 2), (row + 1, col + 2)} <= set(left)
+
+    def test_reports_each_dead_end(self, make_maze: MakeMaze, width: int,
+                                   height: int, entry: tuple[int, int],
+                                   exit: tuple[int, int], seed: str) -> None:
+        """Braiding reports each dead end it handles, out of the dead ends
+        it found."""
+        maze = generated(make_maze, width, height, entry, exit, seed)
+        reports: Reports = []
+        transformer = TaintTransformer()
+        transformer.register_progress_callback(
+            lambda step, done, total: reports.append((step, done, total)))
+        transformer.transform(maze)
+        total = reports[0][2]
+        assert reports == [("braiding", done, total)
+                           for done in range(total)]
 
     def test_no_open_three_by_three(self, make_maze: MakeMaze, width: int,
                                     height: int, entry: tuple[int, int],

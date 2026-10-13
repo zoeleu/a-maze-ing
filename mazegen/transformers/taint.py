@@ -42,7 +42,8 @@ class TaintTransformer(MazeTransformer):
 
         Reports to the history callbacks: MAYBE when a wall is tried, RESET
         when it has to be closed again or a dead end cannot be fixed, and
-        OPEN when an opening stays.
+        OPEN when an opening stays. Reports "braiding" progress as the dead
+        ends handled.
         """
         # be deterministic, so the same maze is always transformed the same way
         random.seed(seed or None)
@@ -57,7 +58,8 @@ class TaintTransformer(MazeTransformer):
         ]
         random.shuffle(dead_ends)
 
-        for cell in dead_ends:
+        for done, cell in enumerate(dead_ends):
+            self._report("braiding", done, len(dead_ends))
             if not self._is_dead_end(maze, cell):
                 continue  # already fixed from a neighbouring dead end
             self._remove_dead_end(maze, cell)

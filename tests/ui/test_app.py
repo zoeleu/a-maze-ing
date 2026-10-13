@@ -13,7 +13,7 @@ from ui.screens import (TONES, ErrorScreen, MainScreen, ProblemFound,
                         TitleBar)
 from ui.session import ConfigProblem
 from tests.helpers import VALID_CONFIG, WriteConfig
-from tests.ui.helpers import Drive, fake_window, plain
+from tests.ui.helpers import Drive, built, fake_window, plain
 
 pytestmark = pytest.mark.ui
 
@@ -60,6 +60,7 @@ class TestApp:
             assert isinstance(pilot.app.screen, ErrorScreen)
             Path(path).write_text(VALID_CONFIG)
             await pilot.press("r")
+            await built(pilot)
             await pilot.pause()
             assert isinstance(pilot.app.screen, MainScreen)
             assert len(pilot.app.screen_stack) == 2
@@ -75,6 +76,7 @@ class TestApp:
             shows."""
             Path(path).write_text("HEIGHT=3\n")
             await pilot.press("r")
+            await built(pilot)
             await pilot.pause()
             screen = pilot.app.screen
             assert isinstance(screen, ErrorScreen)

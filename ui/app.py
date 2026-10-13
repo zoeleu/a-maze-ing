@@ -15,20 +15,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""The Textual application: picks the screen to show, keeps the console
-output the library prints while the UI owns the terminal, and mirrors the
-maze in an MLX window when the terminal is too narrow for it."""
+"""The Textual application: picks the screen to show, builds the mazes on a
+thread of their own, keeps the console output the library prints while the
+UI owns the terminal, and mirrors the maze in an MLX window when the
+terminal is too narrow for it."""
 import sys
+import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Awaitable, Callable, TypeVar
 
 from textual import events, on
 from textual.app import App
 from textual.binding import Binding
 from textual.screen import Screen
+from textual.widget import AwaitMount
 
 from .mlx_window import MazeWindow, WindowState
 from .renderer import AMazeIngRenderer
+from .screens.building import (BuildingScreen, from_thread,
+                               progress_reporter)
 from .screens.error import ErrorScreen, ProblemFound
 from .screens.layout import MazeBody
 from .screens.main import MainScreen
@@ -36,6 +41,9 @@ from .session import ConfigProblem, Session
 
 # How often the MLX window's events are handled, per second
 WINDOW_FPS = 30
+
+# What a build returns: a Session, or a MazeRun
+Result = TypeVar("Result")
 
 
 class AMazeIngApp(App[None]):
@@ -72,19 +80,101 @@ class AMazeIngApp(App[None]):
             self.sync_window()
 
     def load(self) -> None:
-        """Read the config and build a maze, or explain why that failed."""
-        try:
-            session = Session(self.config_path)
-        except ConfigProblem as problem:
-            self._show(ErrorScreen(problem))
-        else:
-            self._show(MainScreen(session))
+        """Read the config and build a maze, showing how far it has got,
+        then show it, or explain why that failed."""
+        def load_session() -> Session:
+            """Read the config and build its first maze, reporting how far
+            it has got to the BuildingScreen."""
+            return Session(self.config_path,
+                           progress=progress_reporter(self))
 
-    def _show(self, screen: Screen[None]) -> None:
-        """Make *screen* the only one above the default screen."""
+        def show_maze(session: Session) -> AwaitMount:
+            """Show the main screen for the new session."""
+            return self._show(MainScreen(session))
+
+        self.build(build_maze=load_session, when_built=show_maze)
+
+    def build(self, build_maze: Callable[[], Result],
+              when_built: Callable[[Result], Awaitable[Any] | None]
+              ) -> None:
+        """Run *build_maze* on a thread of its own behind the BuildingScreen.
+        Then, back on the interface's thread, call *when_built* with what
+        *build_maze* returned, or show the problem if it failed.
+
+        A big maze takes minutes to build: on the interface's thread, it
+        would freeze the interface until done. Python's GIL lets only one
+        thread run Python code at a time, so this does not build any faster,
+        but Python switches threads every few milliseconds, which keeps the
+        interface drawing.
+
+        The thread is a daemon: it is stopped with the program, so quitting
+        never waits for a build to finish.
+        """
+        self.push_screen(BuildingScreen())
+        # A thread is a second line of work running inside the same program,
+        # alongside the first. Normally a program does one thing at a time:
+        # while it builds a maze, it cannot redraw the screen or read keys,
+        # so the interface would freeze for minutes. Here, the interface's
+        # thread keeps drawing and reading keys, while this new thread runs
+        # _run_build(), which builds the maze. start() launches it and
+        # returns at once, without waiting for the maze.
+        # daemon=True: when the program ends, Python stops this thread
+        # instead of waiting for it, so Q quits even mid-build.
+        threading.Thread(target=self._run_build,
+                         args=(build_maze, when_built),
+                         name="maze-build", daemon=True).start()
+
+    def _run_build(self, build_maze: Callable[[], Result],
+                   when_built: Callable[[Result], Awaitable[Any] | None]
+                   ) -> None:
+        """The build thread itself: it runs this function, and ends when the
+        function returns. Builds the maze, then hands the result over to the
+        interface's thread. Any error is shown rather than raised: raised
+        here, it would leave the BuildingScreen up for good."""
+        # This thread must not change the screens itself: Textual is not
+        # thread-safe, so two threads changing the same screen at once could
+        # leave it half-updated or crash. from_thread() asks the interface's
+        # thread to run the function instead (see there).
+        try:
+            result = build_maze()
+        except ConfigProblem as problem:
+            from_thread(self, self._show_problem, problem)
+        except Exception as error:  # e.g. MemoryError
+            from_thread(self, self._show_problem, ConfigProblem(
+                "Build failed", f"{type(error).__name__}: {error}",
+                self.config_path))
+        else:
+            # the maze is built, but only the interface's thread can show it
+            from_thread(self, self._built, when_built, result)
+
+    async def _built(self,
+                     when_built: Callable[[Result], Awaitable[Any] | None],
+                     result: Result) -> None:
+        """On the interface's thread: remove the BuildingScreen and hand
+        *result* to *when_built*, waiting for the screen it shows, if any.
+        The build thread waits for this, so it only ends once the new maze
+        is on screen."""
+        # The screens form a stack, like a pile of cards: the one on top is
+        # shown. pop_screen() takes the BuildingScreen off the top, which
+        # shows the screen below it again.
+        # This function is async so it can wait (await) for that, and for
+        # the screen when_built shows, to be done: Textual changes screens
+        # in steps, between its other tasks, not all at once.
+        await self.pop_screen()
+        shown = when_built(result)
+        if shown is not None:
+            await shown
+
+    def _show_problem(self, problem: ConfigProblem) -> AwaitMount:
+        """On the interface's thread: show what stopped the build."""
+        return self._show(ErrorScreen(problem))
+
+    def _show(self, screen: Screen[None]) -> AwaitMount:
+        """Make *screen* the only one above the default screen. Returns
+        what to await for it to be on screen."""
         while len(self.screen_stack) > 1:
             self.pop_screen()
-        self.push_screen(screen)
+        return self.push_screen(screen)
 
     def on_print(self, event: events.Print) -> None:
         """Keep printed text, to pass on to the console on exit."""

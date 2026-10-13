@@ -21,7 +21,7 @@ from ui.screens import generator as generator_module
 from ui.screens import main as main_module
 from ui.session import ConfigProblem, MazeRun, Session
 from tests.helpers import VALID_CONFIG, WriteConfig
-from tests.ui.helpers import Drive, fake_window, plain, state_of
+from tests.ui.helpers import Drive, built, fake_window, plain, state_of
 
 pytestmark = pytest.mark.ui
 
@@ -190,6 +190,7 @@ class TestMainScreen:
             screen = main_screen(pilot)
             first = screen.session.current
             await pilot.press("r")
+            await built(pilot)
             assert screen.session.current is not first
             seed = screen.session.seed
             assert seed != "42"
@@ -250,12 +251,14 @@ class TestMainScreen:
             """Press M twice, checking the badge, the stats and the config."""
             screen = main_screen(pilot)
             await pilot.press("m")
+            await built(pilot)
             assert screen.session.config.perfect is False
             assert badge_of(pilot) == "PAC-MAN"
             assert "pac-man" in text_of(pilot, "#stats")
             assert "PERFECT=False" in text_of(pilot, "#config")
             assert screen.session.seed == "42"
             await pilot.press("m")
+            await built(pilot)
             assert badge_of(pilot) == "PERFECT"
         drive(valid_config, scenario)
 
@@ -275,6 +278,7 @@ class TestMainScreen:
         async def scenario(pilot: Pilot[None]) -> None:
             """Press *key* and check the error screen shows the problem."""
             await pilot.press(key)
+            await built(pilot)
             await pilot.pause()
             screen = pilot.app.screen
             assert isinstance(screen, ErrorScreen)
@@ -465,6 +469,7 @@ class TestGeneratorScreen:
             screen = await self.open(pilot)
             assert offered(pilot, "algorithm")
             await pilot.press("s", "a")
+            await built(pilot)
             assert screen.session.algorithm == 1
             assert not screen.replay.done  # replaying the new maze
             assert text_of(pilot, "#algorithms").split("\n") == [
@@ -487,6 +492,7 @@ class TestGeneratorScreen:
             """Press A and check the error screen shows."""
             await self.open(pilot)
             await pilot.press("a")
+            await built(pilot)
             await pilot.pause()
             assert isinstance(pilot.app.screen, ErrorScreen)
         drive(valid_config, scenario)
@@ -778,6 +784,7 @@ async def click_algorithm(pilot: Pilot[None], line: int) -> None:
     (line 0); the first algorithm is on line 1."""
     # x=3: past the border and the padding, on the name
     assert await pilot.click("#algorithms", offset=(3, line))
+    await built(pilot)
     await pilot.pause()
 
 
@@ -810,6 +817,7 @@ class TestAlgorithmPicker:
             wilsons = screen.session.current
             assert offered(pilot, "algorithm")
             await pilot.press("a")
+            await built(pilot)
             assert screen.session.algorithm == 1
             assert screen.session.seed == "42"
             assert screen.session.current.maze.grid != wilsons.maze.grid
@@ -818,6 +826,7 @@ class TestAlgorithmPicker:
             renderer = screen.query_one(AMazeIngRenderer)
             assert renderer.maze is screen.session.current.maze
             await pilot.press("a")
+            await built(pilot)
             assert screen.session.algorithm == 0
             assert marked(pilot)[0] == f"▸ {ALGORITHM_NAMES[0]}"
         drive(valid_config, scenario)
@@ -878,6 +887,7 @@ class TestAlgorithmPicker:
         async def scenario(pilot: Pilot[None]) -> None:
             """Press A and check the error screen shows."""
             await pilot.press("a")
+            await built(pilot)
             await pilot.pause()
             assert isinstance(pilot.app.screen, ErrorScreen)
         drive(valid_config, scenario)

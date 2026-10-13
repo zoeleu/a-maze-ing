@@ -19,7 +19,8 @@ from .app import AMazeIngApp
 from .renderer import (AMazeIngRenderer, LOGO_COLOURS, Swatch, Tile,
                        WALL_COLOURS, drawing_height, drawing_width)
 from .session import (ALGORITHMS, CellEvent, ConfigProblem, Event, MazeRun,
-                      Replay, Session, WallChange, dead_ends, load_config)
+                      Replay, Session, WallChange, dead_ends, describe,
+                      load_config)
 
 
 __all__ = [
@@ -40,5 +41,6 @@ __all__ = [
     "Session",
     "WallChange",
     "dead_ends",
+    "describe",
     "load_config",
 ]

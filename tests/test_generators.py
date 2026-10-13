@@ -7,11 +7,13 @@ import pytest
 from mazegen import (BacktrackerGenerator, Cell, Direction, Generator,
                      GeneratorError, Maze, MazeHistoryCallbackCell,
                      WilsonsGenerator)
+from mazegen.algorithms import wilsons
 from tests.helpers import MakeMaze
 
 CLOSED = Direction(sum(Direction))
 Kind = MazeHistoryCallbackCell
 Events = list[tuple[Cell, MazeHistoryCallbackCell]]
+Reports = list[tuple[str, int, int]]  # what progress callbacks were told
 
 # (width, height, entry, exit): small, odd, just big enough for the logo,
 # and bigger
@@ -256,6 +258,28 @@ class TestMazes:
 class TestEveryAlgorithm:
     """Cases every algorithm handles the same way."""
 
+    def test_reports_progress(self, make_maze: MakeMaze,
+                              algorithm: type[Generator]) -> None:
+        """The progress callbacks hear the rows being mapped, then the
+        carving, which ends with every playable cell in the maze, then the
+        check of the exit."""
+        maze = make_maze(10, 8)
+        reports: Reports = []
+        generator = algorithm()
+        generator.register_progress_callback(
+            lambda step, done, total: reports.append((step, done, total)))
+        generator.generate(maze)
+        steps = list(dict.fromkeys(step for step, _, _ in reports))
+        assert steps == ["mapping the cells", "carving", "checking the exit"]
+        assert [done for step, done, total in reports
+                if step == "mapping the cells"] == list(range(8))
+        carving = [(done, total) for step, done, total in reports
+                   if step == "carving"]
+        cells = len(playable(maze))
+        assert carving[-1] == (cells, cells)
+        assert sorted(carving) == carving  # it only ever goes forward
+        assert reports[-1] == ("checking the exit", 0, 0)
+
     def test_different_seeds_give_different_mazes(
             self, make_maze: MakeMaze, algorithm: type[Generator]) -> None:
         """Different seeds give different mazes."""
@@ -287,7 +311,7 @@ class TestEveryAlgorithm:
         """The playable cells are listed in row order, each with its
         playable neighbours: never a logo cell, nor outside the maze."""
         maze = make_maze(10, 8)
-        neighbours = algorithm._neighbours(maze)
+        neighbours = algorithm()._neighbours(maze)
         assert list(neighbours) == playable(maze)
         for cell, others in neighbours.items():
             assert all(other in maze and not maze.in_logo(other)
@@ -321,6 +345,23 @@ class TestWilsons:
         generator._generate(maze, "1")
         assert maze[(0, 0)] == CLOSED
         assert events == [((0, 0), Kind.OPEN)]
+
+    def test_reports_during_long_walks(
+            self, make_maze: MakeMaze,
+            monkeypatch: pytest.MonkeyPatch) -> None:
+        """A walk reports every WALK_REPORT steps too, so the long first
+        walks of a big maze do not look stuck."""
+        def carving_reports() -> int:
+            """How many carving reports building a maze makes."""
+            reports: Reports = []
+            generator = WilsonsGenerator()
+            generator.register_progress_callback(
+                lambda step, done, total: reports.append((step, done, total)))
+            generator.generate(make_maze(10, 8, seed="1"))
+            return sum(1 for step, _, _ in reports if step == "carving")
+        walks_only = carving_reports()
+        monkeypatch.setattr(wilsons, "WALK_REPORT", 1)
+        assert carving_reports() > walks_only
 
     def test_generator_error_is_an_exception(self) -> None:
         """GeneratorError can be caught as an Exception."""

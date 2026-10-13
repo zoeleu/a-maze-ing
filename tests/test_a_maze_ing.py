@@ -91,6 +91,19 @@ def test_warns_when_dead_ends_are_left(
     assert "could not remove all dead ends" in capsys.readouterr().err
 
 
+def test_shows_progress_on_a_terminal(
+        monkeypatch: pytest.MonkeyPatch, valid_config: str, in_tmp: Path,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """With stderr on a terminal, the build keeps rewriting a progress line
+    there, and clears it once done."""
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
+    assert run(monkeypatch, valid_config) == 0
+    err = capsys.readouterr().err
+    assert "\r\033[Kcarving" in err
+    assert "\r\033[Kwriting..." in err
+    assert err.endswith("\r\033[K")
+
+
 def test_no_warning_for_a_perfect_maze(
         monkeypatch: pytest.MonkeyPatch, valid_config: str, in_tmp: Path,
         capsys: pytest.CaptureFixture[str]) -> None:

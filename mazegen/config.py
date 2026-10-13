@@ -21,6 +21,11 @@ import re
 
 from typing_extensions import Self
 
+# The widest and tallest maze, in cells. A cell takes about 1.8 KB while
+# the maze is built and recorded for its replay, and the interface holds two
+# mazes while it builds a new one: 1500 x 1500 cells fit in about 8 GB.
+MAX_SIZE = 1500
+
 
 class ConfigDict(TypedDict):
     """The parsed values of a config, keyed like the config file, for
@@ -122,9 +127,10 @@ class Config:
         self.validate()
 
     def validate(self) -> None:
-        """Checks that the values make a maze that can be built: a size of
-        at least 1, and an entry and exit that are different cells, inside
-        the maze and not on the 42 pattern. Raises a ValueError otherwise.
+        """Checks that the values make a maze that can be built: a size
+        between 1 and MAX_SIZE, and an entry and exit that are different
+        cells, inside the maze and not on the 42 pattern. Raises a
+        ValueError otherwise.
 
         Config(path) calls it; call it yourself after Config.from_dict(),
         which does not.
@@ -134,6 +140,9 @@ class Config:
             if size < 1:
                 raise ValueError(f"Invalid value `{size}` at key `{key}`: "
                                  f"must be at least 1")
+            if size > MAX_SIZE:
+                raise ValueError(f"Invalid value `{size}` at key `{key}`: "
+                                 f"must be at most {MAX_SIZE}")
         for key, (x, y) in (("ENTRY", self.entry), ("EXIT", self.exit)):
             if not 0 <= x < self.width:
                 raise ValueError(f"Invalid value `{x},{y}` at key `{key}`: "

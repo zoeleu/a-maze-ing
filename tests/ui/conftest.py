@@ -6,7 +6,7 @@ import pytest
 
 from ui import AMazeIngApp
 from ui import app as app_module
-from tests.ui.helpers import Drive, FakeMazeWindow, Scenario
+from tests.ui.helpers import Drive, FakeMazeWindow, Scenario, built
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def drive(in_tmp: Path) -> Drive:
         async def main() -> None:
             """Start the app headless and hand its pilot to the scenario."""
             async with app.run_test(size=size) as pilot:
-                await pilot.pause()
+                await built(pilot)
                 await scenario(pilot)
         asyncio.run(main())
         return app

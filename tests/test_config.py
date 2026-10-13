@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from mazegen import Config
+from mazegen.config import MAX_SIZE
 from tests.helpers import VALID_CONFIG, WriteConfig
 
 
@@ -161,6 +162,26 @@ def test_size_must_be_at_least_one(write_config: WriteConfig,
     with pytest.raises(ValueError, match=f"`0` at key `{key}`: must be at "
                                          f"least 1"):
         Config(write_config(with_line(key, "0")))
+
+
+@pytest.mark.parametrize("key", ["WIDTH", "HEIGHT"])
+def test_size_must_be_at_most_the_limit(write_config: WriteConfig,
+                                        key: str) -> None:
+    """A maze is at most MAX_SIZE cells wide and tall, so it fits in
+    memory."""
+    with pytest.raises(ValueError, match=f"`1501` at key `{key}`: must be at "
+                                         f"most 1500"):
+        Config(write_config(with_line(key, "1501")))
+
+
+def test_the_limit_itself_is_allowed() -> None:
+    """A MAX_SIZE x MAX_SIZE maze passes the checks (it is not built
+    here: that takes minutes)."""
+    Config.from_dict({
+        "WIDTH": MAX_SIZE, "HEIGHT": MAX_SIZE, "ENTRY": (0, 0),
+        "EXIT": (MAX_SIZE - 1, MAX_SIZE - 1), "OUTPUT_FILE": "maze.txt",
+        "PERFECT": True, "SEED": None,
+    }).validate()
 
 
 @pytest.mark.parametrize(("key", "value", "axis"), [

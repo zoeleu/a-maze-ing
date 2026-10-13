@@ -107,8 +107,8 @@ twice, the last one wins.
 
 | Key           | Required | Format         | Example                | Meaning                          |
 |---------------|----------|----------------|------------------------|----------------------------------|
-| `WIDTH`       | yes      | integer ≥ 1    | `WIDTH=20`             | Number of columns                |
-| `HEIGHT`      | yes      | integer ≥ 1    | `HEIGHT=15`            | Number of rows                   |
+| `WIDTH`       | yes      | 1 to 1500      | `WIDTH=20`             | Number of columns                |
+| `HEIGHT`      | yes      | 1 to 1500      | `HEIGHT=15`            | Number of rows                   |
 | `ENTRY`       | yes      | `x,y`          | `ENTRY=0,0`            | Entry cell (x = column, y = row) |
 | `EXIT`        | yes      | `x,y`          | `EXIT=19,14`           | Exit cell                        |
 | `OUTPUT_FILE` | yes      | file name      | `OUTPUT_FILE=maze.txt` | Where the maze is written        |
@@ -120,11 +120,21 @@ when:
 
 - a mandatory key is missing, or a line has no `=`;
 - a value has the wrong format (e.g. `WIDTH=abc`, `PERFECT=yes`);
+- `WIDTH` or `HEIGHT` is above 1500 (see below);
 - `ENTRY` or `EXIT` is outside the maze, they are the same cell, or one of
   them falls on the "42" pattern.
 
 Unknown keys are reported and ignored. With `SEED` missing or empty, a random
 seed is picked; the same seed and config always produce the same maze.
+
+A maze is at most 1500 × 1500 cells. This is a sensible default, picked so
+that the program does not run out of memory and crash: a maze this size
+fits in 8 GB of memory. Measured on the interface's build, a cell takes about 1.8 KB: the grid,
+the lists the algorithms work on, and the history kept for the replay. The
+interface keeps the old maze on screen while it builds the new one, so two
+mazes are in memory at once: 1500 × 1500 × 2 × 1.8 KB ≈ 8 GB. Building the
+largest maze takes several minutes, with its progress shown as it goes (see
+[Progress](#progress)).
 
 The "42" needs a maze at least 8 cells wide and 6 cells high. A smaller maze
 is still generated, without the pattern, and an error message is printed.
@@ -204,6 +214,32 @@ screen, and the other way round.
 
 When the config is invalid, an error screen shows the file with the faulty
 line highlighted; fix the file and press `R` to reload it.
+
+### Progress
+
+A big maze takes minutes to build, so every build shows how far it has
+got: which step it is on (mapping the cells, carving, checking the exit,
+braiding, solving, writing) and, when the step can tell, how much of it is
+done.
+
+- **Without the interface** (when the output is not a terminal), the
+  progress is one line on stderr, rewritten in place with `\r`, and cleared
+  once the maze is built. It is only shown when stderr is a terminal, so
+  logs and pipes stay clean.
+- **In the interface**, the maze is built on a thread of its own, behind a
+  screen with a progress bar. Built on the interface's thread, it would
+  freeze the interface until done. Python's GIL lets only one thread run
+  Python code at a time, so this does not make the build faster, but
+  Python switches threads every few milliseconds, which keeps the
+  interface drawing. The build thread only talks to the interface through
+  Textual's `app.call_from_thread()`, which runs a function on the
+  interface's thread: Textual widgets must not be touched from any other.
+  The thread is a *daemon*, so `Q` quits at once, without waiting for the
+  build (see `AMazeIngApp.build()` in `ui/app.py`, and
+  `ui/screens/building.py` for the screen).
+
+The library reports progress for every cell, far more often than it can be
+shown, so the session passes it on at most 10 times a second.
 
 When the terminal is too narrow to draw the maze at all, a notice replaces
 it with an **Open in a window** button (or press `W`) that shows the maze in
@@ -344,18 +380,18 @@ result["fully_braided"]                    # True (None for a perfect maze)
 
 | Parameter   | Default            | Meaning                                            |
 |-------------|--------------------|----------------------------------------------------|
-| `width`     |                    | Number of columns, at least 1                      |
-| `height`    |                    | Number of rows, at least 1                         |
+| `width`     |                    | Number of columns, from 1 to 1500                  |
+| `height`    |                    | Number of rows, from 1 to 1500                     |
 | `entry`     |                    | Entry cell, `(x, y)`                               |
 | `exit`      |                    | Exit cell, `(x, y)`, a different cell from `entry` |
 | `perfect`   | `True`             | Perfect maze, or Pac-Man board when `False`        |
 | `seed`      | `None`             | Same seed, same maze; `None` picks a random one    |
 | `algorithm` | `WilsonsGenerator` | The generator class, e.g. `BacktrackerGenerator`   |
 
-`MazeGen` raises a `ValueError` when the size is below 1, or when the entry
-or exit is outside the maze, on the "42" pattern, or the same cell. The
-returned grid is a copy: changing it does not change the generator's maze,
-which stays available as `generator.maze`.
+`MazeGen` raises a `ValueError` when the size is below 1 or above 1500, or
+when the entry or exit is outside the maze, on the "42" pattern, or the same
+cell. The returned grid is a copy: changing it does not change the
+generator's maze, which stays available as `generator.maze`.
 
 ### Lower-level pieces
 
@@ -425,6 +461,21 @@ generator.register_history_callback(on_step)
 generator.generate(maze)
 ```
 
+They can also report how far they have got, for a progress bar:
+
+```python
+def on_progress(step, done, total):   # total is 0 when it cannot tell
+    print(f"{step}: {done} / {total}")
+
+generator = WilsonsGenerator()
+generator.register_progress_callback(on_progress)
+generator.generate(maze)              # "mapping the cells", "carving", ...
+```
+
+`MazeGen` keeps its generator and transformer as `generator.generator` and
+`generator.transformer`, to register callbacks on them before calling
+`generate()`.
+
 ## Team and project management
 
 ### Roles
@@ -473,20 +524,14 @@ also what made the replay animation possible.
 
 ## Resources
 
-- Jamis Buck, *Mazes for Programmers* (Pragmatic Bookshelf, 2015), and his
-  [series of articles on maze algorithms](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap)
-- Jamis Buck, [Wilson's algorithm](https://weblog.jamisbuck.org/2011/1/20/maze-generation-wilson-s-algorithm)
-- David B. Wilson, *Generating random spanning trees more quickly than the
-  cover time* (STOC 1996), the original paper
-- Walter D. Pullen, [Think Labyrinth: Maze Algorithms](https://www.astrolog.org/labyrnth/algrithm.htm),
-  including braid mazes
-- Wikipedia, [Maze generation algorithm](https://en.wikipedia.org/wiki/Maze_generation_algorithm)
-- Red Blob Games, [Introduction to breadth-first search and A*](https://www.redblobgames.com/pathfinding/a-star/introduction.html)
+- Jamis Buck's blog: his
+  [series of articles on maze algorithms](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap),
+  and in particular [Wilson's algorithm](https://weblog.jamisbuck.org/2011/1/20/maze-generation-wilson-s-algorithm)
+- [Mazes](https://professor-l.github.io/mazes/), maze generation
+  algorithms with interactive visualizations
 - [Textual documentation](https://textual.textualize.io/)
 - Python documentation: [`enum.IntFlag`](https://docs.python.org/3/library/enum.html#enum.IntFlag),
-  [`typing`](https://docs.python.org/3/library/typing.html),
-  [PEP 257](https://peps.python.org/pep-0257/)
-- [Python Packaging User Guide](https://packaging.python.org/)
+  [`typing`](https://docs.python.org/3/library/typing.html)
 - [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ### How AI was used

@@ -16,22 +16,27 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """The screen that shows the maze and lets the user play with it."""
+from typing import TYPE_CHECKING, Callable
+
 from rich.table import Table
 from rich.text import Text
-from textual.app import ComposeResult, App
+from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center, ScrollableContainer, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Static
 
 from ..renderer import LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer
-from ..session import ALGORITHMS, ConfigProblem, MazeRun, Session
+from ..session import ALGORITHMS, MazeRun, Session
 from .algorithms import AlgorithmPicker
-from .error import ProblemFound
 from .layout import (ZOOM_BINDINGS, MazeBody, TooNarrowNotice,
                      zoom_allowed)
 from .generator import GeneratorScreen
 from .titlebar import TitleBar
+
+if TYPE_CHECKING:
+    # only for the type checker: the app imports this module
+    from ..app import AMazeIngApp
 
 MUTED = "#8A939C"
 GREEN = "#7FD18B"
@@ -59,7 +64,7 @@ def badge(run: MazeRun) -> tuple[str, str]:
 
 class MainScreen(Screen[None]):
     """The maze, its config and numbers, and the keys to change it."""
-    app: App[None]
+    app: "AMazeIngApp"
 
     BINDINGS = [
         Binding("r", "regenerate", "Regenerate", key_display="R"),
@@ -97,8 +102,14 @@ class MainScreen(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Draw the session's current maze."""
+        """Draw the session's current maze, and offer the keys that apply
+        to it."""
         self.refresh_maze()
+        # The footer asks check_action() which keys to show. It can ask
+        # while this screen is still being put together, when check_action()
+        # cannot tell yet and hides the path keys (see there). Now that the
+        # screen is complete, make the footer ask again.
+        self.refresh_bindings()
 
     def on_screen_resume(self) -> None:
         """Catch up with changes made on another screen."""
@@ -112,6 +123,12 @@ class MainScreen(Screen[None]):
             return zoom
         if action == "algorithm":
             return len(ALGORITHMS) > 1
+        # is_mounted turns True once the screen and all its widgets are in
+        # place. Before that, the footer may already ask about the keys,
+        # and the renderer below may not exist yet: query_one() would raise
+        # and crash the app. Hide the keys for now; on_mount() asks again.
+        if not self.is_mounted:
+            return False
         showing = self.query_one(AMazeIngRenderer).show_path
         if action == "hide_path":
             return showing
@@ -189,14 +206,19 @@ class MainScreen(Screen[None]):
         self.refresh_maze()
         self.refresh_bindings()
 
+    def _rebuild(self, build_maze: Callable[[], MazeRun]) -> None:
+        """Run *build_maze*, a session method that builds a new maze, behind
+        the progress screen, then redraw."""
+        # app.build() runs build_maze on another thread, so the interface
+        # does not freeze while a big maze is built, then calls when_built
+        # back on the interface's thread: _change() redraws the screen with
+        # the new maze
+        self.app.build(build_maze=build_maze,
+                       when_built=lambda run: self._change())
+
     def action_regenerate(self) -> None:
         """Build a new maze from a fresh seed."""
-        try:
-            self.session.regenerate()
-        except ConfigProblem as problem:
-            self.post_message(ProblemFound(problem))
-            return
-        self._change()
+        self._rebuild(self.session.regenerate)
 
     def action_show_path(self) -> None:
         """Draw the shortest path from entry to exit."""
@@ -222,12 +244,7 @@ class MainScreen(Screen[None]):
 
     def action_toggle_mode(self) -> None:
         """Rebuild the same maze as perfect or braided (pac-man)."""
-        try:
-            self.session.toggle_perfect()
-        except ConfigProblem as problem:
-            self.post_message(ProblemFound(problem))
-            return
-        self._change()
+        self._rebuild(self.session.toggle_perfect)
 
     def action_expand(self) -> None:
         """Draw the maze full size, even though it then scrolls."""
@@ -250,14 +267,8 @@ class MainScreen(Screen[None]):
         self._switch_algorithm(message.index)
 
     def _switch_algorithm(self, index: int) -> None:
-        """Rebuild the maze with ALGORITHMS[*index*], or show what is wrong
-        if that fails."""
-        try:
-            self.session.set_algorithm(index)
-        except ConfigProblem as problem:
-            self.post_message(ProblemFound(problem))
-            return
-        self._change()
+        """Rebuild the maze with ALGORITHMS[*index*]."""
+        self._rebuild(lambda: self.session.set_algorithm(index))
 
     def action_animate(self) -> None:
         """Replay how the current maze was built."""

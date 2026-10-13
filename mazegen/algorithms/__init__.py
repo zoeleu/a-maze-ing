@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .algorithms import (Generator, GeneratorError, MazeHistoryCallbackCell,
-                         history_callback)
+                         history_callback, progress_callback)
 from .wilsons import WilsonsGenerator
 from .backtracker import BacktrackerGenerator
 
@@ -26,6 +26,7 @@ __all__ = [
     "GeneratorError",
     "MazeHistoryCallbackCell",
     "history_callback",
+    "progress_callback",
     "WilsonsGenerator",
     "BacktrackerGenerator",
 ]

@@ -21,6 +21,12 @@ and show it in the interface.
 Usage: python3 a_maze_ing.py <config file>
 """
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # only for the type checker: importing ui needs Textual, which main()
+    # checks for first
+    from ui import Session
 
 USAGE = "usage: python3 a_maze_ing.py <config file>"
 
@@ -36,13 +42,46 @@ def interactive() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
+def show_progress(step: str, done: int, total: int) -> None:
+    """Rewrite the progress line on stderr: back to the start of the line
+    (\\r), clear it (ESC [K), then print where the build is."""
+    from ui import describe
+
+    # \r (carriage return) moves the cursor back to the start of the line,
+    # without going to a new one, so the next text is written over the old.
+    # \033[K is a terminal code that erases the rest of the line: a shorter
+    # text would leave the end of the longer one behind.
+    # end="": no newline, so the next report overwrites this one.
+    # flush=True: print it now. Python holds text back until a whole line
+    # is complete, and this line never is.
+    print(f"\r\033[K{describe(step, done, total)}", end="", file=sys.stderr,
+          flush=True)
+
+
+def load(config_path: str) -> "Session":
+    """Read the config and build its maze, showing how far the build has
+    got on stderr if it is a terminal: a big maze takes minutes.
+
+    Raises ConfigProblem if the config stops the maze from being built.
+    """
+    from ui import Session
+
+    if not sys.stderr.isatty():
+        return Session(config_path)
+    try:
+        return Session(config_path, progress=show_progress)
+    finally:
+        # clear the progress line, for whatever is printed next
+        print("\r\033[K", end="", file=sys.stderr, flush=True)
+
+
 def build(config_path: str) -> int:
     """Build the maze and write its output file, without the interface,
     printing what went wrong if anything did. Returns the exit status."""
-    from ui import ConfigProblem, Session
+    from ui import ConfigProblem
 
     try:
-        session = Session(config_path)
+        session = load(config_path)
     except ConfigProblem as problem:
         # where the problem is, if it is tied to a key or a line
         where = f"{config_path}"

@@ -1,4 +1,5 @@
 """Helpers for the tests that drive the Textual app."""
+import threading
 from typing import Any, Awaitable, Callable, Protocol
 
 from rich.console import Console
@@ -10,8 +11,12 @@ from textual.widgets import Label, Static
 
 from ui import AMazeIngApp
 from ui.mlx_window import Frame, MazeWindow, WindowState
+from ui.screens import BuildingScreen
 
 Scenario = Callable[[Pilot[None]], Awaitable[None]]
+
+# How long built() waits for a maze, in steps of 10 ms: 10 seconds
+BUILD_WAIT_STEPS = 1000
 
 
 class FakeMazeWindow:
@@ -87,6 +92,36 @@ def plain(widget: Widget) -> str:
     with console.capture() as capture:
         console.print(content)
     return capture.get()
+
+
+def building(app: App[Any]) -> bool:
+    """Whether a maze is being built for *app*, or about to be: the app has
+    not shown its first screen yet, the BuildingScreen is up, or the build
+    thread is still running (it ends once its result has been handed over
+    to the interface's thread)."""
+    # screen_stack is the app's list of screens, piled up like cards: the
+    # last one is on top, and is the one shown. The first is Textual's empty
+    # default screen, so a stack of 1 means the app has not shown any of
+    # ours yet.
+    # This checks whether that is the case, whether the screen showing the
+    # maze is being built is up, or whether the thread that builds the maze
+    # is still running, found by its name.
+    return len(app.screen_stack) == 1 \
+        or isinstance(app.screen, BuildingScreen) \
+        or any(thread.name == "maze-build"
+               for thread in threading.enumerate())
+
+
+async def built(pilot: Pilot[None]) -> None:
+    """Wait for the maze being built on its own thread, if any, then for the
+    interface to catch up with it. Fails after 10 seconds."""
+    for _ in range(BUILD_WAIT_STEPS):
+        if not building(pilot.app):
+            break
+        await pilot.pause(0.01)
+    else:
+        raise AssertionError("the maze took too long to build")
+    await pilot.pause()
 
 
 def state_of(window: MazeWindow | FakeMazeWindow) -> WindowState:
