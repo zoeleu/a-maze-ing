@@ -256,3 +256,35 @@ BuildingScreen {
         color: $cyan;
     }
 }
+
+/* Asks before building a maze that may not fit in memory */
+MemoryWarning {
+    align: center middle;
+}
+
+#memory-panel {
+    width: 70;
+    height: auto;
+    border: solid $amber;
+    background: $chrome;
+    padding: 1 2;
+
+    #memory-title {
+        color: $amber;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #memory-detail {
+        margin-bottom: 1;
+    }
+
+    #memory-buttons {
+        height: auto;
+        align: center middle;
+
+        Button {
+            margin: 0 1;
+        }
+    }
+}

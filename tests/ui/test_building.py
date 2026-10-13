@@ -1,12 +1,14 @@
 """Building a maze on its own thread, behind the BuildingScreen."""
 import threading
+from pathlib import Path
 
 import pytest
 from textual.pilot import Pilot
 from textual.widgets import ProgressBar, Static
 
-from ui import AMazeIngApp
-from ui.screens import BuildingScreen, ErrorScreen, MainScreen
+from ui import AMazeIngApp, memory
+from ui.screens import (BuildingScreen, ErrorScreen, MainScreen,
+                        MemoryWarning)
 from ui.screens.building import from_thread, progress_reporter
 from ui.session import MazeRun, Session
 from tests.ui.helpers import Drive, built, plain
@@ -109,13 +111,18 @@ class TestBuilding:
             release.set()
         drive(valid_config, scenario)
 
-    def test_unexpected_error(self, drive: Drive, valid_config: str,
-                              monkeypatch: pytest.MonkeyPatch) -> None:
-        """An error the build does not expect, like running out of memory,
+    @pytest.mark.parametrize(("error", "title", "detail"), [
+        (MemoryError(), "Out of memory", memory.OUT_OF_MEMORY),
+        (RuntimeError("oops"), "Build failed", "RuntimeError: oops"),
+    ])
+    def test_errors(self, drive: Drive, valid_config: str,
+                    monkeypatch: pytest.MonkeyPatch, error: Exception,
+                    title: str, detail: str) -> None:
+        """Running out of memory, or an error the build does not expect,
         shows the error screen instead of leaving the BuildingScreen up."""
         def fail(self: Session) -> MazeRun:
-            """Stand-in for Session.regenerate: runs out of memory."""
-            raise MemoryError("no room")
+            """Stand-in for Session.regenerate: raises *error*."""
+            raise error
         monkeypatch.setattr(Session, "regenerate", fail)
 
         async def scenario(pilot: Pilot[None]) -> None:
@@ -124,9 +131,55 @@ class TestBuilding:
             await built(pilot)
             screen = pilot.app.screen
             assert isinstance(screen, ErrorScreen)
-            assert screen.problem.title == "Build failed"
-            assert screen.problem.detail == "MemoryError: no room"
+            assert screen.problem.title == title
+            assert screen.problem.detail == detail
         drive(valid_config, scenario)
+
+
+class TestMemoryWarning:
+    """The dialog shown before building a maze that may not fit in
+    memory."""
+
+    def test_not_shown_when_the_maze_fits(self, drive: Drive,
+                                          valid_config: str) -> None:
+        """Without a cap on memory, the maze is built straight away."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check the main screen shows."""
+            assert isinstance(pilot.app.screen, MainScreen)
+        drive(valid_config, scenario)
+
+    def test_accept_the_risk(self, drive: Drive, valid_config: str,
+                             monkeypatch: pytest.MonkeyPatch) -> None:
+        """The dialog explains the risk; accepting it builds the maze."""
+        monkeypatch.setattr(memory, "memory_limit", lambda: 1)
+
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check the dialog, accept, and check the maze is built."""
+            screen = pilot.app.screen
+            assert isinstance(screen, MemoryWarning)
+            assert "A 10×8 maze needs about" in plain(
+                screen.query_one("#memory-detail", Static))
+            await pilot.click("#accept")
+            await built(pilot)
+            assert isinstance(pilot.app.screen, MainScreen)
+        drive(valid_config, scenario)
+
+    @pytest.mark.parametrize("key", ["q", "escape", "click"])
+    def test_quit(self, drive: Drive, valid_config: str, in_tmp: Path,
+                  monkeypatch: pytest.MonkeyPatch, key: str) -> None:
+        """Q, Esc and the Quit button quit without building the maze."""
+        monkeypatch.setattr(memory, "memory_limit", lambda: 1)
+
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Answer no and check the app stopped."""
+            if key == "click":
+                await pilot.click("#quit")
+            else:
+                await pilot.press(key)
+            await pilot.pause()
+            assert not pilot.app.is_running
+        drive(valid_config, scenario)
+        assert not (in_tmp / "maze.txt").exists()
 
 
 def test_nothing_reaches_a_stopped_app() -> None:

@@ -9,7 +9,7 @@ import pytest
 
 import mazegen
 from mazegen import Config, Maze, TaintTransformer, WilsonsGenerator
-from ui import AMazeIngApp
+from ui import AMazeIngApp, memory
 from tests.helpers import VALID_CONFIG, WriteConfig
 
 SCRIPT = str(Path(__file__).parent.parent / "a_maze_ing.py")
@@ -25,6 +25,16 @@ def run(monkeypatch: pytest.MonkeyPatch, *args: str) -> int:
     code = exited.value.code
     assert isinstance(code, int)
     return code
+
+
+@pytest.fixture(autouse=True)
+def memory_caps(monkeypatch: pytest.MonkeyPatch) -> list[None]:
+    """Stop main() from capping the memory of the test process itself:
+    the cap would stay for every later test. Returns the list each call to
+    limit_memory() adds to."""
+    calls: list[None] = []
+    monkeypatch.setattr(memory, "limit_memory", lambda: calls.append(None))
+    return calls
 
 
 def script() -> dict[str, Any]:
@@ -89,6 +99,36 @@ def test_warns_when_dead_ends_are_left(
     run(monkeypatch, write_config(
         VALID_CONFIG.replace("PERFECT=True", "PERFECT=False")))
     assert "could not remove all dead ends" in capsys.readouterr().err
+
+
+def test_caps_its_memory(monkeypatch: pytest.MonkeyPatch, valid_config: str,
+                         in_tmp: Path, memory_caps: list[None]) -> None:
+    """The program caps its memory once, before building anything."""
+    run(monkeypatch, valid_config)
+    assert memory_caps == [None]
+
+
+def test_warns_about_a_maze_too_big_for_memory(
+        monkeypatch: pytest.MonkeyPatch, valid_config: str, in_tmp: Path,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """A maze that may not fit in memory is warned about, then built
+    anyway."""
+    monkeypatch.setattr(memory, "memory_limit", lambda: 1)
+    assert run(monkeypatch, valid_config) == 0
+    assert "Warning: A 10×8 maze needs about" in capsys.readouterr().err
+    assert (in_tmp / "maze.txt").is_file()
+
+
+def test_running_out_of_memory(monkeypatch: pytest.MonkeyPatch,
+                               valid_config: str, in_tmp: Path,
+                               capsys: pytest.CaptureFixture[str]) -> None:
+    """Running out of memory stops with a message saying what to do."""
+    def fail(self: WilsonsGenerator, maze: Maze, seed: str | None) -> None:
+        """Stand-in for Wilson's algorithm: runs out of memory."""
+        raise MemoryError()
+    monkeypatch.setattr(WilsonsGenerator, "_generate", fail)
+    assert run(monkeypatch, valid_config) == 1
+    assert f"Error: {memory.OUT_OF_MEMORY}" in capsys.readouterr().err
 
 
 def test_shows_progress_on_a_terminal(

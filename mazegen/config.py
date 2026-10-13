@@ -21,9 +21,10 @@ import re
 
 from typing_extensions import Self
 
-# The widest and tallest maze, in cells. A cell takes about 1.8 KB while
-# the maze is built and recorded for its replay, and the interface holds two
-# mazes while it builds a new one: 1500 x 1500 cells fit in about 8 GB.
+# The widest and tallest maze, in cells: a sensible default. A cell takes
+# about 2.1 KB while the maze is built and recorded for its replay, and the
+# interface holds two mazes while it builds a new one: 1500 x 1500 cells
+# take about 9.5 GB. The interface also caps its memory (ui/memory.py).
 MAX_SIZE = 1500
 
 

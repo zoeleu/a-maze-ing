@@ -30,6 +30,7 @@ from textual.binding import Binding
 from textual.screen import Screen
 from textual.widget import AwaitMount
 
+from .memory import OUT_OF_MEMORY, too_big, warning
 from .mlx_window import MazeWindow, WindowState
 from .renderer import AMazeIngRenderer
 from .screens.building import (BuildingScreen, from_thread,
@@ -37,7 +38,8 @@ from .screens.building import (BuildingScreen, from_thread,
 from .screens.error import ErrorScreen, ProblemFound
 from .screens.layout import MazeBody
 from .screens.main import MainScreen
-from .session import ConfigProblem, Session
+from .screens.memory_warning import MemoryWarning
+from .session import ConfigProblem, Session, load_config
 
 # How often the MLX window's events are handled, per second
 WINDOW_FPS = 30
@@ -81,7 +83,32 @@ class AMazeIngApp(App[None]):
 
     def load(self) -> None:
         """Read the config and build a maze, showing how far it has got,
-        then show it, or explain why that failed."""
+        then show it, or explain why that failed. If the maze may not fit
+        in memory, ask first."""
+        try:
+            config = load_config(self.config_path)
+        except ConfigProblem as problem:
+            self._show(ErrorScreen(problem))
+            return
+        # 2 mazes: the interface keeps the old one while it builds a new one
+        size = (config.width, config.height)
+        if not too_big(*size, mazes=2):
+            self._load_session()
+            return
+
+        def answered(accepted: bool | None) -> None:
+            """Build the maze if the user accepted the risk, quit if not."""
+            if accepted:
+                self._load_session()
+            else:
+                self.exit()
+        # only a warning: the cap set by limit_memory() keeps the computer
+        # safe either way, so the user may still try
+        self._show(MemoryWarning(warning(*size, mazes=2)), answered)
+
+    def _load_session(self) -> None:
+        """Build the session's first maze behind the BuildingScreen, then
+        show it, or explain why that failed."""
         def load_session() -> Session:
             """Read the config and build its first maze, reporting how far
             it has got to the BuildingScreen."""
@@ -135,17 +162,30 @@ class AMazeIngApp(App[None]):
         # thread-safe, so two threads changing the same screen at once could
         # leave it half-updated or crash. from_thread() asks the interface's
         # thread to run the function instead (see there).
+        problem: ConfigProblem | None = None
         try:
             result = build_maze()
-        except ConfigProblem as problem:
-            from_thread(self, self._show_problem, problem)
-        except Exception as error:  # e.g. MemoryError
-            from_thread(self, self._show_problem, ConfigProblem(
+        except ConfigProblem as error:
+            # without its traceback, which keeps the build's data alive
+            problem = error.with_traceback(None)
+        except MemoryError:
+            # past the cap set by limit_memory(): the build stops here
+            # instead of freezing the computer
+            problem = ConfigProblem("Out of memory", OUT_OF_MEMORY,
+                                    self.config_path)
+        except Exception as error:
+            problem = ConfigProblem(
                 "Build failed", f"{type(error).__name__}: {error}",
-                self.config_path))
-        else:
-            # the maze is built, but only the interface's thread can show it
-            from_thread(self, self._built, when_built, result)
+                self.config_path)
+        # The problem is shown only now, out of the except blocks: while one
+        # runs, the error keeps the half-built maze in memory. After a
+        # MemoryError, the interface needs that memory back to draw the
+        # error screen.
+        if problem is not None:
+            from_thread(self, self._show_problem, problem)
+            return
+        # the maze is built, but only the interface's thread can show it
+        from_thread(self, self._built, when_built, result)
 
     async def _built(self,
                      when_built: Callable[[Result], Awaitable[Any] | None],
@@ -169,12 +209,14 @@ class AMazeIngApp(App[None]):
         """On the interface's thread: show what stopped the build."""
         return self._show(ErrorScreen(problem))
 
-    def _show(self, screen: Screen[None]) -> AwaitMount:
-        """Make *screen* the only one above the default screen. Returns
-        what to await for it to be on screen."""
+    def _show(self, screen: Screen[Any],
+              answered: Callable[[Any], None] | None = None) -> AwaitMount:
+        """Make *screen* the only one above the default screen; *answered*
+        is called with its result, for a dialog. Returns what to await for
+        it to be on screen."""
         while len(self.screen_stack) > 1:
             self.pop_screen()
-        return self.push_screen(screen)
+        return self.push_screen(screen, answered)
 
     def on_print(self, event: events.Print) -> None:
         """Keep printed text, to pass on to the console on exit."""

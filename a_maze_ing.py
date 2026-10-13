@@ -60,12 +60,18 @@ def show_progress(step: str, done: int, total: int) -> None:
 
 def load(config_path: str) -> "Session":
     """Read the config and build its maze, showing how far the build has
-    got on stderr if it is a terminal: a big maze takes minutes.
+    got on stderr if it is a terminal: a big maze takes minutes. Warns
+    first if the maze may not fit in memory, but builds it anyway.
 
     Raises ConfigProblem if the config stops the maze from being built.
     """
-    from ui import Session
+    from ui import Session, load_config
+    from ui.memory import too_big, warning
 
+    config = load_config(config_path)
+    if too_big(config.width, config.height):
+        print(f"Warning: {warning(config.width, config.height)}",
+              file=sys.stderr)
     if not sys.stderr.isatty():
         return Session(config_path)
     try:
@@ -79,9 +85,14 @@ def build(config_path: str) -> int:
     """Build the maze and write its output file, without the interface,
     printing what went wrong if anything did. Returns the exit status."""
     from ui import ConfigProblem
+    from ui.memory import OUT_OF_MEMORY
 
     try:
         session = load(config_path)
+    except MemoryError:
+        # past the cap set by limit_memory(): the build stops here instead
+        # of freezing the computer
+        return error(OUT_OF_MEMORY)
     except ConfigProblem as problem:
         # where the problem is, if it is tied to a key or a line
         where = f"{config_path}"
@@ -112,6 +123,11 @@ def main(args: list[str]) -> int:
         from ui import AMazeIngApp
     except ImportError as missing:
         return error(f"{missing}. Run `make install`, then `make run`.")
+    from ui.memory import limit_memory
+
+    # before any maze is built: past this cap, a build stops with a
+    # MemoryError instead of freezing the computer
+    limit_memory()
     try:
         if not interactive():
             return build(config_path)

@@ -127,14 +127,13 @@ when:
 Unknown keys are reported and ignored. With `SEED` missing or empty, a random
 seed is picked; the same seed and config always produce the same maze.
 
-A maze is at most 1500 × 1500 cells. This is a sensible default, picked so
-that the program does not run out of memory and crash: a maze this size
-fits in 8 GB of memory. Measured on the interface's build, a cell takes about 1.8 KB: the grid,
-the lists the algorithms work on, and the history kept for the replay. The
-interface keeps the old maze on screen while it builds the new one, so two
-mazes are in memory at once: 1500 × 1500 × 2 × 1.8 KB ≈ 8 GB. Building the
-largest maze takes several minutes, with its progress shown as it goes (see
-[Progress](#progress)).
+A maze is at most 1500 × 1500 cells. This is a sensible default, to keep
+mazes to a size a computer can build. Measured on the interface's build, a
+cell takes about 2.1 KB: the grid, the lists the algorithms work on, and
+the history kept for the replay. The interface keeps the old maze on screen
+while it builds the new one, so two mazes are in memory at once:
+1500 × 1500 × 2 × 2.1 KB ≈ 9.5 GB. Building the largest maze takes several
+minutes, with its progress shown as it goes (see [Progress](#progress)).
 
 The "42" needs a maze at least 8 cells wide and 6 cells high. A smaller maze
 is still generated, without the pattern, and an error message is printed.
@@ -151,6 +150,29 @@ OUTPUT_FILE=maze.txt
 PERFECT=False
 SEED=
 ```
+
+### Memory
+
+A computer may have less memory than a maze needs. Linux almost never
+refuses a program more memory: it moves other programs' memory to the disk
+instead, and the whole computer slows to a crawl long before anything
+stops. So the program protects the computer in two ways:
+
+- **A cap.** At start, the program caps the memory it may use at 80% of
+  the memory free at that moment (`resource.setrlimit()`, the same limit as
+  the shell's `ulimit -v`; a lower one set before is kept). A build that
+  goes past it stops with a `MemoryError`, which is shown as an error
+  ("Out of memory"), and the rest of the computer is not slowed down. This
+  works on Linux, which says how much memory is free in `/proc/meminfo`.
+- **A warning.** Before building, the program estimates what the maze
+  needs: 2.5 KB per cell (the 2.1 KB measured, rounded up), twice in the
+  interface, plus 150 MB for the program itself. If that is more than the
+  cap, the interface asks whether to *accept the risk and build* anyway,
+  or quit; without the interface, a warning is printed and the maze is
+  built. It is only a warning: the estimate is rough, and the cap keeps the
+  computer safe either way.
+
+See `ui/memory.py`.
 
 ## Output file
 
