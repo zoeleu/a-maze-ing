@@ -12,9 +12,9 @@ INSTALLED	:= $(VENV)/.installed
 MAIN		:= a_maze_ing.py
 CONFIG		:= config.txt
 
-MLX_URL		:= https://cdn.intra.42.fr/document/document/56307/mlx-2.2.tgz
+# MiniLibX ships with the repository; its wheels are extracted into MLX_DIR
+MLX_TAR		:= mlx-2.2.tar.gz
 MLX_DIR		:= .mlx
-MLX_TGZ		:= $(MLX_DIR)/mlx-2.2.tgz
 # checks if the distro is fedora/rhel or fedora/rhel-like
 # quiet grep, checking if the ID= or ID_LIKE= configs have fedora or rhel in them
 MLX_DISTRO	:= $(shell grep -qiE '^ID(_LIKE)?=.*(fedora|rhel)' /etc/os-release 2>/dev/null \
@@ -51,11 +51,8 @@ $(INSTALLED): requirements.txt $(MLX_WHL) | $(PYTHON)
 mlx: $(PYTHON) $(MLX_WHL)
 	$(PIP) install $(MLX_WHL)
 
-$(MLX_TGZ):
+$(MLX_WHL): $(MLX_TAR)
 	mkdir -p $(MLX_DIR)
-	curl -fsSL -o $@ $(MLX_URL)
-
-$(MLX_WHL): $(MLX_TGZ)
 	tar -xzmf $< -C $(MLX_DIR) $(MLX_DISTRO)/mlx-2.2-py3-none-any.whl
 
 # which interpreter and environment the other targets use

@@ -1,4 +1,5 @@
 # Runtime
+typing_extensions>=4.0
 textual>=8.0
 rich>=13.0
 

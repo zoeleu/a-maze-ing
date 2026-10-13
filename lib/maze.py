@@ -73,6 +73,13 @@ class Direction(IntFlag):
         else:
             return f"{self.value:01x}"
 
+    def __format__(self, format_spec: str) -> str:
+        """Formats the walls as a number, e.g. f"{walls:01x}". Python 3.10
+        would format the result of __str__ instead, a letter."""
+        if not format_spec:
+            return str(self)
+        return format(self.value, format_spec)
+
     def has(self, other: "Direction | int") -> bool:
         """Whether any of the walls in *other* is closed here."""
         return bool(self & other)
@@ -164,7 +171,7 @@ class Maze:
         row, col = cell
         return 0 <= row < self.rows and 0 <= col < self.cols
 
-    def __iter__(self) -> Iterator[Tuple[*Cell, Direction]]:
+    def __iter__(self) -> Iterator[Tuple[int, int, Direction]]:
         """Iterates over all cells in the maze, yielding (row, col, directions)
         """
         for row in range(self.rows):

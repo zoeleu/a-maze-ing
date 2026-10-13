@@ -9,9 +9,9 @@ description = "Reusable maze generator (42 A-Maze-ing project)"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE.md"]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [{ name = "Zoe T. Leullier" }, { name = "Flora P. C. Carvalho" }]
-dependencies = []
+dependencies = ["typing_extensions>=4.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -19,7 +19,7 @@ include = ["lib*"]
 exclude = ["lib.ui*"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 exclude = [
     '^\.venv[^/]*/',  # .venv, .venv-pypy3...: one per Python
     '^\.claude/',

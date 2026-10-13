@@ -24,8 +24,8 @@ The generation logic lives in its own package (`lib`, distributed as
 
 ### Requirements
 
-- Python 3.11 or later
-- `make`, and `curl` for the first install
+- Python 3.10 or later
+- `make`
 
 ### Installation
 
@@ -34,9 +34,11 @@ make install
 ```
 
 This creates a virtual environment in `.venv` and installs the dependencies
-listed in `requirements.txt` (Textual and Rich for the interface; flake8,
-mypy and build for development) and MiniLibX. `run`, `test`, `lint` and the
-other rules do this first if it has not been done yet.
+listed in `requirements.txt` (Textual and Rich for the interface,
+`typing_extensions` for the library; flake8, mypy and build for development)
+and MiniLibX, unpacked from `mlx-2.2.tar.gz` at the root of the repository.
+`run`, `test`, `lint` and the other rules do this first if it has not been
+done yet.
 
 To use another Python, give its command as `PY`, on any rule:
 
@@ -77,7 +79,7 @@ interface.
 | `debug`       | Run it under Python's debugger, `pdb`                          |
 | `test`        | Run the `pytest` suite in `tests/`                             |
 | `clean`       | Remove `__pycache__`, `.mypy_cache`, build leftovers           |
-| `fclean`      | `clean`, plus the built package and the MiniLibX download      |
+| `fclean`      | `clean`, plus the built package and the unpacked MiniLibX      |
 | `lint`        | `flake8` and `mypy` with the flags required by the subject     |
 | `lint-strict` | `flake8` and `mypy --strict`                                   |
 | `build`       | Build the `mazegen` wheel at the root of the repository        |

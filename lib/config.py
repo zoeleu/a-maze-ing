@@ -16,8 +16,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from pathlib import Path
-from typing import Callable, Any, TypedDict, Self
+from typing import Callable, Any, TypedDict
 import re
+
+from typing_extensions import Self
 
 
 class ConfigDict(TypedDict):
