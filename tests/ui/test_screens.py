@@ -9,16 +9,16 @@ from textual.screen import Screen
 from textual.timer import Timer, TimerCallback
 from textual.widgets import Button, Label, Static
 
-from lib import WilsonsGenerator
-from lib.ui import app as app_module
-from lib.ui import session as session_module
-from lib.ui.mlx_window import WindowState
-from lib.ui.renderer import (LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer,
-                             Tile)
-from lib.ui.screens import (ErrorScreen, GeneratorScreen, MainScreen,
-                            MazeBody, ProblemFound, badge, readout)
-from lib.ui.screens import generator as generator_module
-from lib.ui.session import ConfigProblem, MazeRun, Session
+from mazegen import WilsonsGenerator
+from ui import app as app_module
+from ui import session as session_module
+from ui.mlx_window import WindowState
+from ui.renderer import (LOGO_COLOURS, WALL_COLOURS, AMazeIngRenderer,
+                         Tile)
+from ui.screens import (ErrorScreen, GeneratorScreen, MainScreen,
+                        MazeBody, ProblemFound, badge, readout)
+from ui.screens import generator as generator_module
+from ui.session import ConfigProblem, MazeRun, Session
 from tests.helpers import VALID_CONFIG, WriteConfig
 from tests.ui.helpers import Drive, fake_window, plain, state_of
 

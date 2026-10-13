@@ -1,7 +1,7 @@
 """The 42 logo helpers, which work without a Maze."""
 import pytest
 
-from lib import in_logo, logo_center, logo_fits
+from mazegen import in_logo, logo_center, logo_fits
 
 # the logo drawn on the smallest maze that holds it, 8 wide by 6 tall
 SMALLEST = """\

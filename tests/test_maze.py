@@ -1,7 +1,7 @@
 """Maze: the wall grid, its passages, the solver and the output file."""
 import pytest
 
-from lib import Cell, Direction, Maze
+from mazegen import Cell, Direction, Maze
 from tests.helpers import MakeMaze
 
 N, E, S, W = Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST

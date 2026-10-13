@@ -4,12 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from lib import (Config, Direction, GeneratorError, Maze,
-                 MazeHistoryCallbackCell, TaintTransformer, WilsonsGenerator)
-from lib.ui import session as session_module
-from lib.ui.session import (ALGORITHMS, CLOSED, CellEvent, ConfigProblem,
-                            Event, MazeRun, Replay, Session, WallChange,
-                            dead_ends, load_config)
+from mazegen import (Config, Direction, GeneratorError, Maze,
+                     MazeHistoryCallbackCell, TaintTransformer,
+                     WilsonsGenerator)
+from ui import session as session_module
+from ui.session import (ALGORITHMS, CLOSED, CellEvent, ConfigProblem,
+                        Event, MazeRun, Replay, Session, WallChange,
+                        dead_ends, load_config)
 from tests.helpers import VALID_CONFIG, MakeConfig, MakeMaze, WriteConfig
 
 Kind = MazeHistoryCallbackCell

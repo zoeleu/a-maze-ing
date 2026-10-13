@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from lib import Config
+from mazegen import Config
 from tests.helpers import VALID_CONFIG, WriteConfig
 
 

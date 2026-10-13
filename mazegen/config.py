@@ -139,9 +139,9 @@ class Config:
                              f"ENTRY")
 
         # check the entry and exit are not walled in by the 42 logo.
-        # Imported here: lib.maze imports this module, so importing it at the
-        # top of the file would be circular.
-        from lib.maze import in_logo
+        # Imported here: mazegen.maze imports this module, so importing it at
+        # the top of the file would be circular.
+        from mazegen.maze import in_logo
         for key, (x, y) in (("ENTRY", self.entry), ("EXIT", self.exit)):
             # the config gives (x, y), while cells are (row, col)
             if in_logo((y, x), self.height, self.width):

@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Run the UI on its own: python3 -m lib.ui config.txt"""
+"""Run the UI on its own: python3 -m ui config.txt"""
 import sys
 
-from lib.ui import AMazeIngApp
+from ui import AMazeIngApp
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("usage: python3 -m lib.ui <config file>", file=sys.stderr)
+        print("usage: python3 -m ui <config file>", file=sys.stderr)
         sys.exit(1)
     AMazeIngApp(sys.argv[1]).run()

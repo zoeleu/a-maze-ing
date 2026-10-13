@@ -2576,7 +2576,7 @@ function draw(){
   for(let r=0;r<R;r++)h+=`<text class="ts" x="${X(CO)+10}" y="${Y(r)+C/2}" dominant-baseline="central">${r}</text>`;
   document.getElementById('sv').innerHTML=h;
 }
-const CODE=["def _has_open_block(self, maze, cell):","    row, col = cell","    span = range(self.BLOCK)","    corners = ((row - dr, col - dc)","               for dr in span for dc in span)","    for top, left in corners:","        block = {(top + r, left + c)","                 for r in span for c in span}","        if all(maze.is_open(inner, side)","               for inner in block","               for side in lib.Direction","               if maze.neighbour(inner, side) in block):","            return True","    return False"];
+const CODE=["def _has_open_block(self, maze, cell):","    row, col = cell","    span = range(self.BLOCK)","    corners = ((row - dr, col - dc)","               for dr in span for dc in span)","    for top, left in corners:","        block = {(top + r, left + c)","                 for r in span for c in span}","        if all(maze.is_open(inner, side)","               for inner in block","               for side in mazegen.Direction","               if maze.neighbour(inner, side) in block):","            return True","    return False"];
 function code(hl){document.getElementById('code').innerHTML=CODE.map((l,i)=>`<div class="cl${hl.includes(i)?' on':''}">${l.replace(/</g,'&lt;')}</div>`).join('')}
 const p=a=>`(${a[0]},${a[1]})`;
 function render(){

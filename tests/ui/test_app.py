@@ -1,4 +1,4 @@
-"""The Textual app, its error screen, title bar and `python -m lib.ui`."""
+"""The Textual app, its error screen, title bar and `python -m ui`."""
 import runpy
 import sys
 from pathlib import Path
@@ -8,10 +8,10 @@ from textual.app import App
 from textual.pilot import Pilot
 from textual.widgets import Label, Static
 
-from lib.ui import AMazeIngApp
-from lib.ui.screens import (TONES, ErrorScreen, MainScreen, ProblemFound,
-                            TitleBar)
-from lib.ui.session import ConfigProblem
+from ui import AMazeIngApp
+from ui.screens import (TONES, ErrorScreen, MainScreen, ProblemFound,
+                        TitleBar)
+from ui.session import ConfigProblem
 from tests.helpers import VALID_CONFIG, WriteConfig
 from tests.ui.helpers import Drive, fake_window, plain
 
@@ -250,12 +250,13 @@ class TestTitleBar:
 
 
 class TestMainModule:
-    """Running the UI with python3 -m lib.ui."""
+    """Running the UI with python3 -m ui."""
 
     def run(self, monkeypatch: pytest.MonkeyPatch, *args: str) -> None:
-        """Run lib.ui as the main module with *args* on the command line."""
-        monkeypatch.setattr(sys, "argv", ["lib.ui", *args])
-        runpy.run_module("lib.ui", run_name="__main__", alter_sys=True)
+        """Run ui as the main module with *args* on the command
+        line."""
+        monkeypatch.setattr(sys, "argv", ["ui", *args])
+        runpy.run_module("ui", run_name="__main__", alter_sys=True)
 
     @pytest.mark.parametrize("args", [(), ("a.txt", "b.txt")])
     def test_usage(self, monkeypatch: pytest.MonkeyPatch,
@@ -265,7 +266,7 @@ class TestMainModule:
         with pytest.raises(SystemExit) as info:
             self.run(monkeypatch, *args)
         assert info.value.code == 1
-        assert "usage: python3 -m lib.ui <config file>" in \
+        assert "usage: python3 -m ui <config file>" in \
             capsys.readouterr().err
 
     def test_runs_the_app(self, monkeypatch: pytest.MonkeyPatch) -> None:

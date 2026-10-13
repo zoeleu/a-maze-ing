@@ -24,7 +24,7 @@ panels). The body lays them out again whenever its own size changes.
 
 When the terminal is too narrow to draw the maze at all, the notice that
 replaces it offers to show the maze in an MLX window instead (see
-lib/ui/mlx_window.py), and says how that window is doing.
+ui/mlx_window.py), and says how that window is doing.
 """
 from rich.text import Text
 from textual.app import ComposeResult, App

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from lib import Config, Maze
+from mazegen import Config, Maze
 from tests.helpers import (VALID_CONFIG, MakeConfig, MakeMaze,
                            WriteConfig)
 

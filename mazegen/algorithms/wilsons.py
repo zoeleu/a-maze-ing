@@ -17,7 +17,7 @@
 
 import random
 
-import lib
+import mazegen
 from .algorithms import Generator, MazeHistoryCallbackCell
 
 
@@ -25,7 +25,7 @@ class WilsonsGenerator(Generator):
     """Wilson's algorithm: loop-erased random walks, which give every
     possible perfect maze the same chance."""
 
-    def _generate(self, maze: lib.Maze, seed: str | None) -> None:
+    def _generate(self, maze: mazegen.Maze, seed: str | None) -> None:
         """Generate a perfect maze using Wilson's algorithm.
 
         Cells that belong to the 42 logo stay walled off, so the walks are
@@ -44,12 +44,13 @@ class WilsonsGenerator(Generator):
             if not maze.in_logo((row, col))
         ]
         if not playable:
-            raise lib.GeneratorError("No playable cells to generate a maze")
+            raise mazegen.GeneratorError(
+                "No playable cells to generate a maze")
 
-        neighbours: dict[lib.Cell, list[lib.Cell]] = {}
+        neighbours: dict[mazegen.Cell, list[mazegen.Cell]] = {}
         for cell in playable:
             neighbours[cell] = []
-            for side in lib.Direction:
+            for side in mazegen.Direction:
                 other = maze.neighbour(cell, side)
                 if other is None:
                     continue
@@ -84,7 +85,7 @@ class WilsonsGenerator(Generator):
 
             # Carve the loop-erased walk into the maze.
             for cell, other in zip(path, path[1:]):
-                maze.open_path(cell, lib.Direction.between(cell, other))
+                maze.open_path(cell, mazegen.Direction.between(cell, other))
                 in_tree.add(cell)
                 self._emit(cell, MazeHistoryCallbackCell.OPEN)
             # the cell the walk ended on was already in the maze, and now

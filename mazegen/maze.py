@@ -21,7 +21,7 @@ import sys
 from typing import Dict, Iterator, List, Tuple
 import random
 
-from lib.config import Config
+from mazegen.config import Config
 
 Cell = Tuple[int, int]
 

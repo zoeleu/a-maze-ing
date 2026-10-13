@@ -6,10 +6,10 @@ from rich.console import Console
 from rich.style import Style
 from rich.text import Text
 
-from lib import Direction, Maze
-from lib.ui.renderer import (CYAN, GOLD, GROUND, LOGO_COLOURS, UNTOUCHED,
-                             WALL_COLOURS, AMazeIngRenderer, Swatch, Tile,
-                             drawing_height, drawing_width)
+from mazegen import Direction, Maze
+from ui.renderer import (CYAN, GOLD, GROUND, LOGO_COLOURS, UNTOUCHED,
+                         WALL_COLOURS, AMazeIngRenderer, Swatch, Tile,
+                         drawing_height, drawing_width)
 from tests.helpers import MakeMaze
 
 E, S = Direction.EAST, Direction.SOUTH

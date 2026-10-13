@@ -28,7 +28,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
-from lib import Cell, Direction, Maze
+from mazegen import Cell, Direction, Maze
 from .mlx_window import Frame
 from .session import CLOSED
 

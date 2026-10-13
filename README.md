@@ -17,8 +17,8 @@ in one of two modes:
   with many loops and no dead ends, with the four corners and the centre open,
   usable as a Pac-Man-like level.
 
-The generation logic lives in its own package (`lib`, distributed as
-`mazegen`) so it can be reused in later projects without the interface.
+The generation logic lives in its own package, `mazegen`, so it can be
+reused in later projects without the interface.
 
 ## Instructions
 
@@ -190,14 +190,14 @@ the path, and the replay all show there as they change. Nothing opens until
 you ask. Close it with its close button or `Esc`; it also closes once the
 terminal is wide enough again. The window runs in the interface's thread:
 `mlx_loop()` never returns on its own, so it is run one pass at a time from
-a timer (see `lib/ui/mlx_window.py`).
+a timer (see `ui/mlx_window.py`).
 
 ## How the maze is generated
 
 Generation happens in two steps: a **generator** builds a perfect maze, then,
 in Pac-Man mode, a **transformer** reworks it into a board with loops.
 
-### Wilson's algorithm (`lib/algorithms/wilsons.py`)
+### Wilson's algorithm (`mazegen/algorithms/wilsons.py`)
 
 The maze starts with every wall closed. The cells of the "42" pattern are
 removed from the grid before generation starts, so they stay fully closed.
@@ -230,7 +230,7 @@ Its drawback is speed: the first walks are long, since they wander until they
 find the few cells already in the maze. In practice a 32×32 maze, braiding
 included, is built in under a tenth of a second.
 
-### Braiding into a Pac-Man board (`lib/transformers/taint.py`)
+### Braiding into a Pac-Man board (`mazegen/transformers/taint.py`)
 
 `TaintTransformer` turns the perfect maze into a board:
 
@@ -253,8 +253,8 @@ is along a shortest path, which it then walks back.
 
 ## Reusable code
 
-The maze generator is a standalone package, `lib`, with no dependency on the
-interface (`lib/ui` is excluded from the package). Build it with:
+The maze generator is a standalone package, `mazegen`, with no dependency on
+the interface, which lives in its own folder, `ui`. Build it with:
 
 ```bash
 make build
@@ -270,7 +270,7 @@ pip install mazegen-1.0.0-py3-none-any.whl
 ### Usage
 
 ```python
-from lib import Config, Direction, Maze, TaintTransformer, WilsonsGenerator
+from mazegen import Config, Direction, Maze, TaintTransformer, WilsonsGenerator
 
 # Parameters: size, entry/exit as (x, y), mode, and seed for reproducibility.
 # Config("config.txt") reads them from a file instead.
@@ -365,8 +365,6 @@ also what made the replay animation possible.
 
 - A single `MazeGenerator` class wrapping config, generation, braiding and
   solving would make the reusable package simpler to use.
-- The package is imported as `lib`, a generic name that could clash with
-  other projects.
 - Automated tests should have been written earlier, alongside the code.
 
 ### Tools
@@ -404,8 +402,8 @@ the project:
 - **Explaining concepts:** maze algorithms (Wilson's, BFS), Makefile syntax,
   packaging and software licences.
 - **Writing code:** parts of the code were AI-generated, mostly in the
-  interface (`lib/ui`). All of it was discussed, read, modified and commented
-  by us; no code was submitted without review.
+  interface (`ui`). All of it was discussed, read, modified and
+  commented by us; no code was submitted without review.
 - **Review and debugging:** troubleshooting errors, fixing flake8 and mypy
   issues, and checking the project against the subject.
 - **Tests:** writing the test programs used to check the project.

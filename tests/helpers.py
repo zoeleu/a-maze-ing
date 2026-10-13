@@ -1,7 +1,7 @@
 """Data shared by the tests, and types for the fixtures in conftest.py."""
 from typing import Protocol
 
-from lib import Config, Maze
+from mazegen import Config, Maze
 
 VALID_CONFIG = """\
 # a valid config

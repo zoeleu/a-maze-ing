@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from lib import Direction
+from mazegen import Direction
 
 ALL = Direction.NORTH | Direction.EAST | Direction.SOUTH | Direction.WEST
 

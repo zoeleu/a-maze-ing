@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from lib.ui import AMazeIngApp
-from lib.ui import app as app_module
+from ui import AMazeIngApp
+from ui import app as app_module
 from tests.ui.helpers import Drive, FakeMazeWindow, Scenario
 
 

@@ -3,8 +3,8 @@ from typing import Any, Callable
 
 import pytest
 
-from lib.ui.mlx_window import (CLOSE_EVENT, ESCAPE, MAX_SCALE, Frame,
-                               MazeWindow, WindowState, paint, scale_for)
+from ui.mlx_window import (CLOSE_EVENT, ESCAPE, MAX_SCALE, Frame,
+                           MazeWindow, WindowState, paint, scale_for)
 from tests.ui.helpers import state_of
 
 PADDING = 8  # extra bytes at the end of each image line, as MLX may add

@@ -15,17 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import lib
+import mazegen
 from abc import ABC, abstractmethod
 
-from lib.algorithms import MazeHistoryCallbackCell, history_callback
+from mazegen.algorithms import MazeHistoryCallbackCell, history_callback
 
 
 class MazeTransformer(ABC):
     """Base class of the transformations applied to a generated maze.
     Subclasses implement _transform(), and report what they do through
     _emit()."""
-    # check lib/algorithms/algorithms.py, the architecture is similar
+    # check mazegen/algorithms/algorithms.py, the architecture is similar
     _history_callback: list[history_callback]
 
     def __init__(self) -> None:
@@ -33,7 +33,7 @@ class MazeTransformer(ABC):
         super().__init__()
         self._history_callback = []
 
-    def transform(self, maze: lib.Maze) -> bool:
+    def transform(self, maze: mazegen.Maze) -> bool:
         """Transform the maze in place. Returns True if the transformer
         fully achieved its goal, False if it could only do part of it."""
         return self._transform(maze, maze.config.seed)
@@ -43,13 +43,13 @@ class MazeTransformer(ABC):
         reset."""
         self._history_callback.append(callback)
 
-    def _emit(self, cell: lib.Cell, kind: MazeHistoryCallbackCell) -> None:
+    def _emit(self, cell: mazegen.Cell, kind: MazeHistoryCallbackCell) -> None:
         """Tell every registered callback what just happened to *cell*.
         Transformers call this from _transform()."""
         for callback in self._history_callback:
             callback(cell, kind)
 
     @abstractmethod
-    def _transform(self, maze: lib.Maze, seed: str | None) -> bool:
+    def _transform(self, maze: mazegen.Maze, seed: str | None) -> bool:
         """Change *maze* in place, seeding the random module with *seed*.
         Returns True if the goal was fully achieved."""

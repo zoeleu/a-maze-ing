@@ -4,8 +4,8 @@ from collections import Counter
 
 import pytest
 
-from lib import (Cell, Direction, Generator, GeneratorError, Maze,
-                 MazeHistoryCallbackCell, WilsonsGenerator)
+from mazegen import (Cell, Direction, Generator, GeneratorError, Maze,
+                     MazeHistoryCallbackCell, WilsonsGenerator)
 from tests.helpers import MakeMaze
 
 CLOSED = Direction(sum(Direction))

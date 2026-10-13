@@ -8,8 +8,8 @@ from textual.pilot import Pilot
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-from lib.ui import AMazeIngApp
-from lib.ui.mlx_window import Frame, MazeWindow, WindowState
+from ui import AMazeIngApp
+from ui.mlx_window import Frame, MazeWindow, WindowState
 
 Scenario = Callable[[Pilot[None]], Awaitable[None]]
 

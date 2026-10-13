@@ -18,7 +18,7 @@
 import sys
 from sys import argv
 
-from lib import Maze, WilsonsGenerator, TaintTransformer, Config
+from mazegen import Maze, WilsonsGenerator, TaintTransformer, Config
 
 if __name__ == "__main__":
     maze = Maze(Config(argv[1]))

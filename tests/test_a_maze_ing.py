@@ -1,4 +1,4 @@
-"""The a_maze_ing.py command and what the lib package exports."""
+"""The a_maze_ing.py command and what the mazegen package exports."""
 import runpy
 import subprocess
 import sys
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import lib
-from lib import Config, Maze, TaintTransformer, WilsonsGenerator
+import mazegen
+from mazegen import Config, Maze, TaintTransformer, WilsonsGenerator
 from tests.helpers import VALID_CONFIG, WriteConfig
 
 SCRIPT = str(Path(__file__).parent.parent / "a_maze_ing.py")
@@ -115,7 +115,7 @@ def test_end_to_end(write_config: WriteConfig, tmp_path: Path) -> None:
     assert set(path) <= set("NESW")
 
 
-@pytest.mark.parametrize("name", lib.__all__)
+@pytest.mark.parametrize("name", mazegen.__all__)
 def test_package_exports(name: str) -> None:
-    """Every name in lib.__all__ can be imported from lib."""
-    assert hasattr(lib, name)
+    """Every name in mazegen.__all__ can be imported from mazegen."""
+    assert hasattr(mazegen, name)

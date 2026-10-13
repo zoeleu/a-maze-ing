@@ -28,8 +28,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
 
-from lib import (Cell, Config, Direction, Generator, GeneratorError, Maze,
-                 MazeHistoryCallbackCell, TaintTransformer, WilsonsGenerator)
+from mazegen import (Cell, Config, Direction, Generator, GeneratorError,
+                     Maze, MazeHistoryCallbackCell, TaintTransformer,
+                     WilsonsGenerator)
 
 CLOSED = Direction.NORTH | Direction.EAST | Direction.SOUTH | Direction.WEST
 

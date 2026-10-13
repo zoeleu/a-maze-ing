@@ -2,8 +2,8 @@
 perfect maze into a Pac-Man board."""
 import pytest
 
-from lib import (Cell, Direction, Maze, MazeHistoryCallbackCell,
-                 MazeTransformer, TaintTransformer, WilsonsGenerator)
+from mazegen import (Cell, Direction, Maze, MazeHistoryCallbackCell,
+                     MazeTransformer, TaintTransformer, WilsonsGenerator)
 from tests.helpers import MakeMaze
 from tests.test_generators import passages, playable, reachable, walls_agree
 

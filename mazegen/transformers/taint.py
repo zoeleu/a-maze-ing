@@ -17,8 +17,8 @@
 
 import random
 
-import lib
-from lib.algorithms import MazeHistoryCallbackCell
+import mazegen
+from mazegen.algorithms import MazeHistoryCallbackCell
 from .transformers import MazeTransformer
 
 
@@ -29,7 +29,7 @@ class TaintTransformer(MazeTransformer):
 
     BLOCK = 3
 
-    def _transform(self, maze: lib.Maze, seed: str | None) -> bool:
+    def _transform(self, maze: mazegen.Maze, seed: str | None) -> bool:
         """Knock down a wall next to every dead end.
 
         A wall is only removed if it does not create an open area of
@@ -68,7 +68,7 @@ class TaintTransformer(MazeTransformer):
             for row, col, _ in maze
         )
 
-    def _open_center(self, maze: lib.Maze) -> None:
+    def _open_center(self, maze: mazegen.Maze) -> None:
         """Open the corridor in the middle of the logo.
 
         It runs between the 4 and the 2: the three cells from the centre
@@ -83,8 +83,8 @@ class TaintTransformer(MazeTransformer):
         for top in ((row - 1, col), (row, col), (row + 1, col),
                     (row + 2, col)):
             below = (top[0] + 1, top[1])
-            opened = maze.open_path(top, lib.Direction.SOUTH)
-            if maze.is_open(top, lib.Direction.SOUTH):
+            opened = maze.open_path(top, mazegen.Direction.SOUTH)
+            if maze.is_open(top, mazegen.Direction.SOUTH):
                 # mark the corridor cells so Maze.debug_render() draws them
                 # as O (debugging aid only, does not change the maze)
                 maze.marked.update({top, below})
@@ -92,7 +92,7 @@ class TaintTransformer(MazeTransformer):
                 self._emit(top, MazeHistoryCallbackCell.OPEN)
                 self._emit(below, MazeHistoryCallbackCell.OPEN)
 
-    def _open_corners(self, maze: lib.Maze) -> None:
+    def _open_corners(self, maze: mazegen.Maze) -> None:
         """Open both inner walls of each corner, so a corner is a bend and
         never a dead end. Skips a wall that would create a 3x3 open area, or
         that touches the logo."""
@@ -104,7 +104,7 @@ class TaintTransformer(MazeTransformer):
             self._emit(corner, MazeHistoryCallbackCell.MAYBE)
             opened = False
             # for each neighbour
-            for side in lib.Direction:
+            for side in mazegen.Direction:
                 # get the neighbour
                 other = maze.neighbour(corner, side)
                 # skip the sides facing out of the maze
@@ -135,16 +135,16 @@ class TaintTransformer(MazeTransformer):
                        else MazeHistoryCallbackCell.RESET)
 
     @staticmethod
-    def _is_dead_end(maze: lib.Maze, cell: lib.Cell) -> bool:
+    def _is_dead_end(maze: mazegen.Maze, cell: mazegen.Cell) -> bool:
         """A playable cell with exactly one open side."""
         if maze.in_logo(cell):
             return False
         return sum(1 for _ in maze.open_sides(cell)) == 1
 
     @staticmethod
-    def _has_openable_wall(maze: lib.Maze, cell: lib.Cell) -> bool:
+    def _has_openable_wall(maze: mazegen.Maze, cell: mazegen.Cell) -> bool:
         """Whether a closed side of the cell faces a playable cell."""
-        for side in lib.Direction:
+        for side in mazegen.Direction:
             other = maze.neighbour(cell, side)
             if other is None or other not in maze or maze.in_logo(other):
                 continue
@@ -152,11 +152,11 @@ class TaintTransformer(MazeTransformer):
                 return True
         return False
 
-    def _remove_dead_end(self, maze: lib.Maze, cell: lib.Cell) -> bool:
+    def _remove_dead_end(self, maze: mazegen.Maze, cell: mazegen.Cell) -> bool:
         """Try to open one of the walls around the dead end, without
         creating an open BLOCK x BLOCK area. Returns True on success."""
-        candidates: list[tuple[lib.Direction, lib.Cell]] = []
-        for side in lib.Direction:
+        candidates: list[tuple[mazegen.Direction, mazegen.Cell]] = []
+        for side in mazegen.Direction:
             other = maze.neighbour(cell, side)
             if other is None:
                 continue
@@ -195,7 +195,7 @@ class TaintTransformer(MazeTransformer):
         self._emit(cell, MazeHistoryCallbackCell.RESET)
         return False
 
-    def _has_open_block(self, maze: lib.Maze, cell: lib.Cell) -> bool:
+    def _has_open_block(self, maze: mazegen.Maze, cell: mazegen.Cell) -> bool:
         """Whether a BLOCK x BLOCK fully open area contains the cell."""
         row, col = cell
         span = range(self.BLOCK)
@@ -206,7 +206,7 @@ class TaintTransformer(MazeTransformer):
             block = {(top + r, left + c) for r in span for c in span}
             # if every passage between the box's cells is open
             if all(maze.is_open(inner, side)
-                   for inner in block for side in lib.Direction
+                   for inner in block for side in mazegen.Direction
                    if maze.neighbour(inner, side) in block):
                 return True
         return False

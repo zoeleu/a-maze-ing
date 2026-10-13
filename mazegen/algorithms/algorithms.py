@@ -19,7 +19,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import Callable
 from enum import Enum, auto
-import lib
+import mazegen
 
 
 class MazeHistoryCallbackCell(Enum):
@@ -38,7 +38,7 @@ class MazeHistoryCallbackCell(Enum):
 # this will be used for renderers or any other system that needs to
 # keep track of what the algorithms are doing, it will be called
 # with the cell, and what the algorithm is thinking about
-history_callback = Callable[[lib.Cell, MazeHistoryCallbackCell], None]
+history_callback = Callable[[mazegen.Cell, MazeHistoryCallbackCell], None]
 
 
 class GeneratorError(Exception):
@@ -56,7 +56,7 @@ class Generator(ABC):
         super().__init__()
         self._history_callback = []
 
-    def generate(self, maze: lib.Maze) -> None:
+    def generate(self, maze: mazegen.Maze) -> None:
         """Generate a maze in place.
 
         If the exit cannot be reached, every wall is closed again, MAZE_RESET
@@ -77,7 +77,7 @@ class Generator(ABC):
                 # and try again
                 random.seed(cur_seed)
                 cur_seed = random.randbytes(8).hex()
-                closed = lib.Direction(sum(lib.Direction))
+                closed = mazegen.Direction(sum(mazegen.Direction))
                 for row, col, _ in maze:
                     maze[(row, col)] = closed
                 self._emit((0, 0), MazeHistoryCallbackCell.MAZE_RESET)
@@ -87,13 +87,13 @@ class Generator(ABC):
         reset."""
         self._history_callback.append(callback)
 
-    def _emit(self, cell: lib.Cell, kind: MazeHistoryCallbackCell) -> None:
+    def _emit(self, cell: mazegen.Cell, kind: MazeHistoryCallbackCell) -> None:
         """Tell every registered callback what just happened to *cell*.
         Generators call this from _generate()."""
         for callback in self._history_callback:
             callback(cell, kind)
 
     @abstractmethod
-    def _generate(self, maze: lib.Maze, seed: str | None) -> None:
+    def _generate(self, maze: mazegen.Maze, seed: str | None) -> None:
         """Carve a maze into *maze*, which starts with every wall closed,
         seeding the random module with *seed*."""
