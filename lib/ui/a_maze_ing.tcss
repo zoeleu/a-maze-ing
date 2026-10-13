@@ -1,0 +1,222 @@
+/*
+ * A-Maze-Ing - A 42 School project to generate mazes.
+ * Copyright (C) 2026 Zoe T. Leullier
+ * Copyright (C) 2026 Flora P. C. Carvalho
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/* Colours from the A-Maze-ing TUI design */
+$ground: #0E1013;
+$chrome: #1B1F25;
+$edge: #39404A;
+$rule: #262B32;
+$ink: #C7CCD1;
+$muted: #8A939C;
+$gold: #E8C547;
+$cyan: #5BC0EB;
+$red: #F25F5C;
+$amber: #F2C14E;
+$amber-wash: #2E2619;
+
+Screen {
+    background: $ground;
+    color: $ink;
+    layout: vertical;
+    scrollbar-color: $edge;
+    scrollbar-color-hover: $muted;
+    scrollbar-color-active: $ink;
+    scrollbar-background: $ground;
+    scrollbar-background-hover: $ground;
+    scrollbar-background-active: $ground;
+    scrollbar-corner-color: $ground;
+}
+
+TitleBar {
+    height: 1;
+    background: $chrome;
+    color: $muted;
+    padding: 0 1;
+
+    Label {
+        padding: 0 1;
+    }
+
+    #brand {
+        color: $gold;
+        text-style: bold;
+    }
+
+    #spacer {
+        width: 1fr;
+    }
+
+    #badge {
+        color: $ground;
+        text-style: bold;
+        background: $gold;
+        margin-left: 1;
+
+        &.-cyan {
+            background: $cyan;
+        }
+
+        &.-red {
+            background: $red;
+        }
+    }
+}
+
+.banner {
+    height: 1;
+    padding: 0 2;
+    background: $amber-wash;
+    color: $amber;
+}
+
+#body {
+    height: 1fr;
+    padding: 1 1 0 1;
+}
+
+#maze-holder {
+    width: auto;
+    height: auto;
+    max-height: 100%;
+}
+
+#maze-panel {
+    width: auto;
+    height: auto;
+    max-height: 100%;
+    border: solid $edge;
+    padding: 0 1;
+}
+
+#side {
+    width: 1fr;
+    min-width: 30;
+    height: auto;
+    margin-left: 2;
+}
+
+/* The maze would scroll beside the side panels: put them under it, and let
+   the maze grow to its full height so the whole body scrolls instead */
+#body.-stacked {
+    layout: vertical;
+    overflow-y: auto;
+
+    #maze-holder {
+        width: 1fr;
+        max-height: initial;
+    }
+
+    #maze-panel {
+        max-height: initial;
+        overflow-y: hidden;
+    }
+
+    #side {
+        margin: 1 0 0 0;
+    }
+}
+
+#too-narrow {
+    display: none;
+    width: 1fr;
+    color: $amber;
+}
+
+.panel {
+    height: auto;
+    border: solid $edge;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.note {
+    color: $muted;
+}
+
+#status {
+    height: 1;
+    padding: 0 2;
+}
+
+#error-body {
+    height: 1fr;
+}
+
+#error-panel {
+    width: auto;
+    min-width: 60;
+    max-width: 100;
+    height: auto;
+    border: solid $red;
+    padding: 1 2;
+
+    #error-title {
+        color: $red;
+        text-style: bold;
+    }
+
+    #error-where {
+        color: $muted;
+        margin-bottom: 1;
+    }
+
+    #excerpt {
+        width: auto;
+        background: #15181D;
+        padding: 0 1;
+        margin-bottom: 1;
+    }
+
+    #error-detail {
+        margin-bottom: 1;
+    }
+
+    #error-hint {
+        color: $muted;
+    }
+}
+
+Footer {
+    height: 2;
+    background: $ground;
+    border-top: solid $rule;
+    padding: 0 1;
+
+    FooterKey {
+        background: $ground;
+        color: $ink;
+
+        .footer-key--key {
+            background: $ink;
+            color: $ground;
+            text-style: bold;
+            padding: 0 1;
+        }
+
+        .footer-key--description {
+            background: $ground;
+            color: $ink;
+            padding: 0 2 0 1;
+        }
+
+        &:hover {
+            background: $chrome;
+        }
+    }
+}

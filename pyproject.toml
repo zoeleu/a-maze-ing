@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mazegen"
+version = "1.0.0"
+description = "Reusable maze generator (42 A-Maze-ing project)"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE.md"]
+requires-python = ">=3.11"
+authors = [{ name = "Zoe T. Leullier" }, { name = "Flora P. C. Carvalho" }]
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lib*"]
+exclude = ["lib.ui*"]
+
+[tool.mypy]
+python_version = "3.11"
+exclude = [
+    '^\.venv/',
+    '^\.claude/',
+    '^build/',
+    '^dist/',
+]

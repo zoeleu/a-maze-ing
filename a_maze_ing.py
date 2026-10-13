@@ -1,15 +1,34 @@
-from lib import Maze, Direction
+# A-Maze-Ing - A 42 School project to generate mazes.
+# Copyright (C) 2026 Zoe T. Leullier
+# Copyright (C) 2026 Flora P. C. Carvalho
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-class MazeGenerationError(Exception):
-    pass
+import sys
+from sys import argv
 
+from lib import Maze, WilsonsGenerator, TaintTransformer, Config
 
 if __name__ == "__main__":
-    all_dir = Direction.NORTH | Direction.EAST | \
-        Direction.SOUTH | Direction.WEST
-    row_max = 8
-    col_max = 8
-    for row in range(6, row_max + 1):
-        for col in range(8, col_max + 1):
-            maze = Maze([[all_dir for _ in range(col)] for _ in range(row)])
-            print(maze.render())
+    maze = Maze(Config(argv[1]))
+    generator = WilsonsGenerator()
+    generator.generate(maze)
+    if not maze.config.perfect:
+        transformer = TaintTransformer()
+        result = transformer.transform(maze)
+        if not result:
+            print("Warning: could not remove all dead ends from the maze",
+                  file=sys.stderr)
+    with open(maze.config.output_file, "w") as f:
+        f.write(maze.get_output())

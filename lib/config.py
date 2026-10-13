@@ -1,35 +1,79 @@
+# A-Maze-Ing - A 42 School project to generate mazes.
+# Copyright (C) 2026 Zoe T. Leullier
+# Copyright (C) 2026 Flora P. C. Carvalho
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 from pathlib import Path
-from typing import Callable, Any
+from typing import Callable, Any, TypedDict, Self
 import re
 
 
+class ConfigDict(TypedDict):
+    WIDTH: int
+    HEIGHT: int
+    ENTRY: tuple[int, int]
+    EXIT: tuple[int, int]
+    OUTPUT_FILE: str
+    PERFECT: bool
+    SEED: str | None
+
+
 class Config:
+    """A class that reads a config file and sets the attributes of the Config
+    object accordingly. The config file should have the following format:
+
+    WIDTH=(int)
+    HEIGHT=(int)
+    ENTRY=(x, y)
+    EXIT=(x, y)
+    OUTPUT_FILE=(str)
+    PERFECT=(True|False)
+    SEED=(str, optional)
+    """
     width: int
     height: int
     entry: tuple[int, int]
     exit: tuple[int, int]
-    output: str
+    output_file: str
     perfect: bool
-    seed: int
+    seed: str | None = None
 
     def __init__(self, config_path: str):
+        """Reads a config file and sets the attributes of the Config object
+        accordingly."""
         path = Path(config_path)
 
         if not path.is_file():
             raise FileNotFoundError(f"Config file not found at {config_path}!")
 
+        # Read the config file and store the key-value pairs in a dictionary
         kv = self.__read_file_dict(config_path)
 
+        # Defines the regex patterns to check if
+        # the values are valid
         check_dict: dict[str, str] = {
             "WIDTH": "^[0-9]+$",
             "HEIGHT": "^[0-9]+$",
             "ENTRY": "^[0-9]+,[0-9]+$",
             "EXIT": "^[0-9]+,[0-9]+$",
-            "OUTPUT_FILE": "^(?!:\\0)$",
+            "OUTPUT_FILE": r"^(?!.*\0).+$",
             "PERFECT": "^(True|False)$",
-            "SEED": "^[0-9]+$"
+            "SEED": "^.*$"
         }
 
+        # Defines the functions that parse the values
         parse_dict: dict[str, Callable[[str], Any]] = {
             "WIDTH": lambda w: int(w),
             "HEIGHT": lambda h: int(h),
@@ -37,7 +81,7 @@ class Config:
             "EXIT": lambda e: tuple(map(int, e.split(","))),
             "OUTPUT_FILE": lambda o: o,
             "PERFECT": lambda p: p == "True",
-            "SEED": lambda s: int(s)
+            "SEED": lambda s: s
         }
 
         mandatory = {
@@ -50,25 +94,77 @@ class Config:
         }
 
         if not mandatory.issubset(kv.keys()):
-            raise IndexError(f"Missing the following keys: {mandatory.difference(kv.keys())}")
+            raise IndexError(f"Missing the following keys: "
+                             f"{mandatory.difference(kv.keys())}")
 
         for key in kv.keys():
+            # If the key doesn't exist in any of the dictionaries,
+            # it is ignored. Mostly done to satisfy type checking.
             if key not in check_dict:
+                print(f"Warning: Unknown key `{key}` in config file."
+                      f"Ignoring...")
                 continue
             if key not in parse_dict:
+                print(f"Warning: key `{key}` was found in config file but no "
+                      f"parser is defined."
+                      f"Ignoring...")
                 continue
             if not re.match(check_dict[key], kv[key]):
                 raise ValueError(f"Invalid value `{kv[key]}` at key \
                                  `{key}`: in config file")
             setattr(self, key.lower(), parse_dict[key](kv[key]))
 
+        # check bounds
+        for key, size in (("WIDTH", self.width), ("HEIGHT", self.height)):
+            if size < 1:
+                raise ValueError(f"Invalid value `{size}` at key `{key}`: "
+                                 f"must be at least 1")
+        for key, (x, y) in (("ENTRY", self.entry), ("EXIT", self.exit)):
+            if not 0 <= x < self.width:
+                raise ValueError(f"Invalid value `{x},{y}` at key `{key}`: "
+                                 f"x must be between 0 and {self.width - 1} "
+                                 f"(WIDTH={self.width})")
+            if not 0 <= y < self.height:
+                raise ValueError(f"Invalid value `{x},{y}` at key `{key}`: "
+                                 f"y must be between 0 and {self.height - 1} "
+                                 f"(HEIGHT={self.height})")
+        if self.entry == self.exit:
+            raise ValueError(f"Invalid value `{self.exit[0]},{self.exit[1]}` "
+                             f"at key `EXIT`: must be a different cell from "
+                             f"ENTRY")
+
+        # check the entry and exit are not walled in by the 42 logo.
+        # Imported here: lib.maze imports this module, so importing it at the
+        # top of the file would be circular.
+        from lib.maze import in_logo
+        for key, (x, y) in (("ENTRY", self.entry), ("EXIT", self.exit)):
+            # the config gives (x, y), while cells are (row, col)
+            if in_logo((y, x), self.height, self.width):
+                raise ValueError(f"Invalid value `{x},{y}` at key `{key}`: "
+                                 f"falls on the 42 pattern")
+
+    @classmethod
+    def from_dict(cls, config_dict: ConfigDict) -> Self:
+        """Creates a Config object from a dictionary of key-value pairs."""
+        instance = cls.__new__(cls)
+
+        for key, value in config_dict.items():
+            setattr(instance, key.lower(), value)
+
+        return instance
+
     def __read_file_dict(self, filename: str) -> dict[str, str]:
         with open(filename) as file:
             lines_read = file.readlines()
 
-        # Removes comments
-        lines = filter(lambda s: not s.startswith("#"), lines_read)
-        # Splits into [[key, value], ...]
-        keys_values = map(lambda line: line.split("=", 1), lines)
-
-        return dict(keys_values)
+        result: dict[str, str] = {}
+        for number, line in enumerate(lines_read, start=1):
+            # skip comments and empty lines
+            if line.startswith("#") or line.strip() == "":
+                continue
+            if "=" not in line:
+                raise ValueError(f"Line {number} is not KEY=VALUE: "
+                                 f"`{line.strip()}`")
+            key, value = line.split("=", 1)
+            result[key.strip()] = value.strip()
+        return result

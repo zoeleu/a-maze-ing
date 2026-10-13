@@ -1,0 +1,8 @@
+# Runtime
+textual>=8.0
+rich>=13.0
+
+# Development: linting, type checking and packaging
+flake8>=7.0
+mypy>=1.10
+build>=1.2
