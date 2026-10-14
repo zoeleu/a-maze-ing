@@ -18,7 +18,7 @@
 """The Textual application: picks the screen to show, builds the mazes on a
 thread of their own, keeps the console output the library prints while the
 UI owns the terminal, and mirrors the maze in an MLX window when the
-terminal is too narrow for it."""
+terminal is too narrow or too short for it."""
 import sys
 import threading
 from pathlib import Path
@@ -235,10 +235,10 @@ class AMazeIngApp(App[None]):
         return next(iter(self.screen.query(MazeBody)), None)
 
     def _window_wanted(self) -> bool:
-        """Whether the maze is too wide for the terminal, so the MLX
+        """Whether the maze is too big for the terminal, so the MLX
         window may show it."""
         body = self._maze_body()
-        return body is not None and body.too_narrow
+        return body is not None and body.replaced
 
     @on(AMazeIngRenderer.Changed)
     @on(MazeBody.Changed)

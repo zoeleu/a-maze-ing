@@ -225,7 +225,7 @@ time). Keys:
 | `A` | Cycle the generation algorithm, keeping the seed                 |
 | `G` | Watch an animated replay of how the maze was built               |
 | `Z` | Expand / shrink the maze when it does not fit the terminal       |
-| `W` | Open the maze in an MLX window, when the terminal is too narrow  |
+| `W` | Open the maze in an MLX window, when the terminal is too small   |
 | `Q` | Quit                                                             |
 
 In the replay screen: `Space` pauses or resumes, `+`/`-` change the speed,
@@ -267,12 +267,12 @@ done.
 The library reports progress for every cell, far more often than it can be
 shown, so the session passes it on at most 10 times a second.
 
-When the terminal is too narrow to draw the maze at all, a notice replaces
+When the terminal is too narrow or too short to draw the maze at all, a notice replaces
 it with an **Open in a window** button (or press `W`) that shows the maze in
 a separate MiniLibX (MLX) window, kept in sync with the interface: colours,
 the path, and the replay all show there as they change. Nothing opens until
 you ask. Close it with its close button or `Esc`; it also closes once the
-terminal is wide enough again. The window runs in the interface's thread:
+terminal is big enough again. The window runs in the interface's thread:
 `mlx_loop()` never returns on its own, so it is run one pass at a time from
 a timer (see `ui/mlx_window.py`).
 

@@ -594,6 +594,46 @@ class TestLayout:
             assert not offered(pilot, "shrink")
         drive(sized(write_config, 40, 20), scenario, size=(50, 30))
 
+    def test_too_short(self, drive: Drive, write_config: WriteConfig) -> None:
+        """A terminal far too short shows a notice instead of the maze,
+        which asks for rows and not columns."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check the notice replaces the maze and names the rows."""
+            screen = pilot.app.screen
+            assert screen.query_one("#too-narrow").display
+            assert not screen.query_one("#maze-panel").display
+            body = screen.query_one(MazeBody)
+            assert body.too_short and not body.too_narrow
+            notice = text_of(pilot, "#too-narrow-text")
+            assert notice.startswith("Terminal too short")
+            assert "rows" in notice and "columns" not in notice
+            assert not offered(pilot, "expand")
+            assert not offered(pilot, "shrink")
+        drive(sized(write_config, 40, 20), scenario, size=(160, 10))
+
+    def test_too_narrow_and_short(self, drive: Drive,
+                                  write_config: WriteConfig) -> None:
+        """A terminal both too narrow and too short says so."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Check the notice names the columns and the rows."""
+            notice = text_of(pilot, "#too-narrow-text")
+            assert notice.startswith("Terminal too narrow and too short")
+            assert "columns and" in notice and "rows" in notice
+        drive(sized(write_config, 40, 20), scenario, size=(50, 10))
+
+    def test_short_follows_terminal_resizes(
+            self, drive: Drive, write_config: WriteConfig) -> None:
+        """The maze comes back once the terminal is tall enough."""
+        async def scenario(pilot: Pilot[None]) -> None:
+            """Make the terminal taller and check the notice goes."""
+            screen = pilot.app.screen
+            assert screen.query_one("#too-narrow").display
+            await pilot.resize_terminal(160, 40)
+            await pilot.pause()
+            assert not screen.query_one("#too-narrow").display
+            assert screen.query_one("#maze-panel").display
+        drive(sized(write_config, 40, 20), scenario, size=(160, 10))
+
     def test_follows_terminal_resizes(self, drive: Drive,
                                       write_config: WriteConfig) -> None:
         """The layout is redone when the terminal is resized."""
