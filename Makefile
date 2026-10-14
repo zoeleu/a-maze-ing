@@ -74,7 +74,7 @@ clean:
 	rm -rf .mypy_cache .pytest_cache build dist *.egg-info
 
 fclean: clean
-	rm -f mazegen-*.whl mazegen-*.tar.gz
+	rm -f mazegen-*.whl mazegen-*.tar.gz mazegen.tar.gz
 	rm -rf $(MLX_DIR)
 
 lint: $(INSTALLED)
@@ -87,4 +87,5 @@ lint-strict: $(INSTALLED)
 
 build: $(INSTALLED)
 	$(PYTHON) -m build --outdir .
+	cp mazegen-*.tar.gz mazegen.tar.gz
 	rm -rf build *.egg-info
