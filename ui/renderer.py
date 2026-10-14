@@ -56,6 +56,7 @@ LOGO_COLOURS = [
 GROUND = Color.parse("#0E1013")
 GOLD = Color.parse("#E8C547")
 CYAN = Color.parse("#5BC0EB")
+RED = Color.parse("#FF1A1A")
 UNTOUCHED = Color.parse("#1B1F26")
 
 
@@ -251,7 +252,7 @@ class AMazeIngRenderer(Widget):
             Tile.LOGO: self.logo_colour,
             Tile.OPEN: GROUND.hex,
             Tile.UNTOUCHED: UNTOUCHED.hex,
-            Tile.PATH: GROUND.blend(GOLD, 0.4).hex,
+            Tile.PATH: RED.hex,
             Tile.TRAIL: GROUND.blend(CYAN, 0.4).hex,
             Tile.HEAD: GOLD.hex,
             Tile.ENTRY: CYAN.hex,
